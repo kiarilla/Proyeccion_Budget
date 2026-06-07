@@ -1,0 +1,15 @@
+{
+  "best_method": "budget_scaled",
+  "kpis": {
+    "Budget_FY_Total": 1287497203.8726783,
+    "Forecast_5plus7_Total": 1157527220.1171765,
+    "Real_YTD_Total": 423424511.2118348,
+    "Pct_Avance_Real": 32.88741209986407,
+    "Var_vs_Budget_Abs": -129969983.75550175,
+    "Var_vs_Budget_Pct": -10.094777943172497,
+    "Forecast_Oficial_Total": 1349715611.2744672,
+    "Var_vs_Oficial_Abs": -192188391.1572907,
+    "Var_vs_Oficial_Pct": -14.239176723740869
+  },
+  "executed_at": "2026-06-07T17:31:23.789240"
+}
