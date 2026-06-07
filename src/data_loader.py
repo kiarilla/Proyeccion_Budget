@@ -30,10 +30,20 @@ DIM_COLS = ["Resp", "Desc Resp", "VP", "Gerencia", "Proc", "Desc Proc",
 
 
 def _resolve_path(filename: str | None = None) -> Path:
-    """Resuelve la ruta al archivo de datos."""
+    """Resuelve la ruta al archivo de datos, con fallback para despliegues."""
     fname = filename or DATA_FILE
     full = DATA_DIR / fname
+
     if not full.exists():
+        # Fallback: probar version con underscores (comun en depliegues Linux)
+        alt_name = fname.replace("+", "_")
+        alt_full = DATA_DIR / alt_name
+        if alt_full.exists():
+            return alt_full
+        # Fallback 2: buscar cualquier .xlsx en data/
+        xlsx_files = list(DATA_DIR.glob("*.xlsx"))
+        if xlsx_files:
+            return xlsx_files[0]
         raise FileNotFoundError(
             f"No se encuentra el archivo de datos: {full}. "
             f"Coloque '{fname}' dentro de la carpeta 'data/'."
