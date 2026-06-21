@@ -750,7 +750,7 @@ with tabs[6]:
 # --------------------------------------------------------------------------
 with tabs[7]:
     st.title("Budget 2027-2031")
-    st.write(forecast_lines_f.columns.tolist())
+
     st.markdown(
         "Proyección presupuestaria basada en los valores históricos del Budget."
     )
