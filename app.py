@@ -834,18 +834,3 @@ with tabs[7]:
             "No se encontró la columna Budget_FY para generar el Budget."
         )
 
-from src.pdf_generator import generar_pdf
-import streamlit as st
-
-# df ya cargado en tu app
-
-if st.button("📄 Generar PDF Budget 2027-2031"):
-
-    pdf = generar_pdf(df)
-
-    st.download_button(
-        label="⬇️ Descargar PDF",
-        data=pdf,
-        file_name="Budget_2027_2031.pdf",
-        mime="application/pdf"
-    )
