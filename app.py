@@ -892,7 +892,6 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
         df_estrat[f'{m}-30'] = df_estrat['Final_FY30'] * peso_ajustado
         df_estrat[f'{m}-31'] = df_estrat['Final_FY31'] * peso_ajustado
 
-    # Reestructuración limpia de las columnas de salida para asegurar consistencia
     cols_salida = cols_existentes + [f'Final_{a}' for a in todos_los_anios] + [f'{m}-27' for m in meses_cal]
     df_final_proy = df_estrat[cols_salida].copy()
 
@@ -1004,11 +1003,11 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
         st.dataframe(df_verif.head(200), use_container_width=True)
 
     # ------------------------------------------------------------------------
-    # PESTAÑA: MOTOR DE REPORTES EXCEL CON RESUMEN Y GRÁFICO CORREGIDO
+    # PESTAÑA: MOTOR DE REPORTES EXCEL CON RESUMEN, GRÁFICO Y PARÁMETROS
     # ------------------------------------------------------------------------
     with tab_est3:
         st.subheader("💾 Motor de Reportes Excel con Gráficos Integrados")
-        st.markdown("Genera una sábana analítica estructurada junto con un cuadro dinámico resumen y gráfico nativo para presentaciones corporativas.")
+        st.markdown("Genera una sábana analítica estructurada junto con un cuadro dinámico resumen, las variables de sensibilidad aplicadas y un gráfico nativo.")
         
         from io import BytesIO
         output_excel = BytesIO()
@@ -1019,30 +1018,54 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
             workbook  = writer.book
             worksheet = writer.sheets["Proyeccion_Estrategica"]
             
-            # Formatos de Celda para Reportabilidad Nativa
+            # Formatos de Celda Estructurados
             header_fmt = workbook.add_format({
                 'bold': True, 'text_wrap': True, 'fg_color': '#1d3557', 
                 'font_color': 'white', 'border': 1, 'align': 'center', 'valign': 'vcenter'
             })
+            param_header_fmt = workbook.add_format({
+                'bold': True, 'text_wrap': True, 'fg_color': '#e63946', 
+                'font_color': 'white', 'border': 1, 'align': 'center', 'valign': 'vcenter'
+            })
             money_fmt  = workbook.add_format({'num_format': '$#,##0', 'border': 1})
+            pct_fmt    = workbook.add_format({'num_format': '+0.0%;-0.0%;0.0%', 'border': 1, 'align': 'center'})
+            text_fmt   = workbook.add_format({'border': 1})
             
-            # Autoajuste dinámico del ancho de columnas
+            # Autoajuste dinámico del ancho de columnas principales
             for col_num, col_name in enumerate(df_final_proy.columns):
                 max_len = max(df_final_proy[col_name].astype(str).map(len).max(), len(col_name)) + 3
                 worksheet.set_column(col_num, col_num, min(max_len, 30))
                 
-            # --- TABLA RESUMEN PARA EL GRÁFICO NATIVO DE EXCEL ---
+            # Columna de inicio para los paneles laterales derechos en Excel
             start_col = len(df_final_proy.columns) + 2
+            worksheet.set_column(start_col, start_col+1, 28) # Espacio visual óptimo
             
+            # --- TABLA 1: RESUMEN PARA EL GRÁFICO NATIVO DE EXCEL ---
             worksheet.write(8, start_col, "Año", header_fmt)
             worksheet.write(8, start_col+1, "Gasto Total (USD)", header_fmt)
             
-            # Recopilación de totales limpios y alineados con la lógica estratégica
             totals = [df_final_proy[f'Final_{a}'].sum() for a in años_quinquenio]
             
             for i, (año, tot) in enumerate(zip(['2027', '2028', '2029', '2030', '2031'], totals)):
-                worksheet.write(9+i, start_col, año)
+                worksheet.write(9+i, start_col, año, text_fmt)
                 worksheet.write(9+i, start_col+1, tot, money_fmt)
+
+            # --- TABLA 2: PARÁMETROS DE SENSIBILIDAD UTILIZADOS ---
+            worksheet.write(16, start_col, "Variable de Sensibilidad", param_header_fmt)
+            worksheet.write(16, start_col+1, "Porcentaje de Variación", param_header_fmt)
+            
+            parametros_guardados = [
+                ("Precio Diésel / Combustible", slider_fuel_pct / 100.0),
+                ("Tarifa Energía Eléctrica", slider_power_pct / 100.0),
+                ("Tipo de Cambio / USD", slider_dolar_pct / 100.0),
+                ("Costo Mano de Obra", slider_labor_pct / 100.0)
+            ]
+            
+            for i, (var_name, var_val) in enumerate(parametros_guardados):
+                worksheet.write(17+i, start_col, var_name, text_fmt)
+                worksheet.write(17+i, start_col+1, var_val, pct_fmt)
+                
+            worksheet.write(22, start_col, f"Escenario Maestro Activo: {escenario}", workbook.add_format({'bold': True, 'font_italic': True}))
 
             # --- CREACIÓN DEL GRÁFICO DENTRO DE EXCEL ---
             chart = workbook.add_chart({'type': 'column'})
@@ -1053,12 +1076,13 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
                 'data_labels': {'value': True},
                 'fill':   {'color': '#4F81BD'}
             })
-            chart.set_title({'name': 'Evolución del Presupuesto (2027-2031)'})
+            chart.set_title({'name': f'Evolución del Presupuesto ({escenario})'})
             chart.set_x_axis({'name': 'Año Operativo'})
             chart.set_y_axis({'name': 'Costo (USD)', 'num_format': '$#,##0'})
             chart.set_size({'width': 550, 'height': 350})
             
-            worksheet.insert_chart(16, start_col, chart)
+            # Insertar el gráfico abajo (fila 25) para que no oculte las tablas analíticas anteriores
+            worksheet.insert_chart(25, start_col, chart)
             
         st.download_button(
             label="Descargar Reporte Quinquenal (Incluye Gráficos y Variables en Excel)",
@@ -1114,7 +1138,7 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
                 'BoldCorp', parent=body_style, fontName='Helvetica-Bold'
             )
             
-            # --- CAPTURA DE FECHA EN TIEMPO REAL FORZANDO HORARIO DE CHILE ---
+            # Captura de fecha forzando huso horario de Chile
             try:
                 tz_chile = zoneinfo.ZoneInfo("America/Santiago")
                 ahora_chile = datetime.now(tz_chile)
@@ -1123,7 +1147,6 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
                 
             fecha_viva = ahora_chile.strftime("%d/%m/%Y")
             
-            # --- DETERMINACIÓN DE CLASIFICACIONES DE REPRESENTACIÓN REAL (DEL GRÁFICO) ---
             if not df_final_proy.empty and 'Classif' in df_final_proy.columns:
                 classif_reales = sorted(df_final_proy['Classif'].dropna().unique().tolist())
                 classif_txt = ", ".join(classif_reales) if classif_reales else "[Sin clasificaciones representadas]"
@@ -1159,7 +1182,7 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
             
             story.append(Spacer(1, 5))
             story.append(Paragraph("2. Alcance y Categorías Evaluadas en este Informe", h1_style))
-            story.append(Paragraph("Los datos consolidados corresponden estrictamente a las líneas presupuestarias con representación e impacto real según los filtros seleccionados:", body_style))
+            story.append(Paragraph("Los datos consolidados corresponden estrictamente a las líneas presupuestarias con representation e impacto real según los filtros seleccionados:", body_style))
             
             alcance_data = [
                 [Paragraph("<b>Vicepresidencias (VPs):</b>", body_style), Paragraph(vps_txt, body_style)],
