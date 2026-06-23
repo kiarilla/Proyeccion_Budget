@@ -997,17 +997,18 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
         st.download_button("Descargar Reporte Quinquenal Excel", data=output_excel.getvalue(), file_name="Planificacion_Estrategica_Visual.xlsx", use_container_width=True)
 
     # ------------------------------------------------------------------------
-    # PESTAÑA ACTUALIZADA: REPORTE EJECUTIVO PDF DINÁMICO E INFORMADO
+    # PESTAÑA: MOTOR DE REPORTE EJECUTIVO PDF TOTALMENTE CORREGIDO
     # ------------------------------------------------------------------------
     with tab_est4:
         st.subheader("📄 Generador de Reporte PDF Corporativo en Tiempo Real")
-        st.markdown("Genera un documento formal listo para comités ejecutivos que captura las sensibilidades aplicadas y detalla explícitamente los alcances evaluados.")
+        st.markdown("Genera un documento formal listo para comités ejecutivos que captura las sensibilidades aplicadas y detalla explícitamente los alcances reales evaluados.")
         
         from reportlab.lib.pagesizes import letter
         from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
         from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
         from reportlab.lib import colors
         from io import BytesIO
+        from datetime import datetime
 
         def generar_pdf_ejecutivo():
             buffer = BytesIO()
@@ -1040,10 +1041,20 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
                 'BoldCorp', parent=body_style, fontName='Helvetica-Bold'
             )
             
-            # Formateadores de texto para las listas de filtros activos
+            # --- CAPTURA DINÁMICA DE FECHA Y HORA AL INSTANTE ---
+            ahora = datetime.now()
+            fecha_viva = ahora.strftime("%d/%m/%Y")
+            hora_viva = ahora.strftime("%H:%M")
+            
+            # --- DETERMINACIÓN DE CLASIFICACIONES DE REPRESENTACIÓN REAL (DEL GRÁFICO) ---
+            if not df_final_proy.empty and 'Classif' in df_final_proy.columns:
+                classif_reales = sorted(df_final_proy['Classif'].dropna().unique().tolist())
+                classif_txt = ", ".join(classif_reales) if classif_reales else "[Sin clasificaciones representadas]"
+            else:
+                classif_txt = "[Sin datos disponibles debido a los filtros]"
+
             vps_txt = ", ".join(selected_vps) if selected_vps else "[Todas las VPs Consolidadas]"
             gerencias_txt = ", ".join(selected_gerencias) if selected_gerencias else "[Todas las Gerencias Consolidadas]"
-            classif_txt = ", ".join(selected_classif) if selected_classif else "[Todas las Clasificaciones de Cuenta]"
 
             # --- PÁGINA 1: PORTADA INSTITUCIONAL ---
             story.append(Spacer(1, 80))
@@ -1051,11 +1062,10 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
             story.append(Paragraph("Análisis de Riesgo Operativo y Proyección de Costos (2027 - 2031)", sub_style))
             story.append(Spacer(1, 100))
             
-            # Metadatos fijos con Fecha y Hora correctas solicitadas
             info_data = [
                 [Paragraph("<b>Preparado Para:</b>", body_style), Paragraph("Comité de Finanzas y Operaciones", body_style)],
-                [Paragraph("<b>Fecha de Emisión:</b>", body_style), Paragraph("22/06/2026", body_style)],
-                [Paragraph("<b>Hora de Emisión:</b>", body_style), Paragraph("22:31", body_style)],
+                [Paragraph("<b>Fecha de Emisión:</b>", body_style), Paragraph(fecha_viva, body_style)],
+                [Paragraph("<b>Hora de Emisión:</b>", body_style), Paragraph(hora_viva, body_style)],
                 [Paragraph("<b>Escenario Aplicado:</b>", body_style), Paragraph(f"{escenario}", bold_body)]
             ]
             t_info = Table(info_data, colWidths=[140, 360])
@@ -1063,7 +1073,7 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
             story.append(t_info)
             story.append(PageBreak())
 
-            # --- PÁGINA 2: RESUMEN EJECUTIVO Y ALCANCE DETALLADO ---
+            # --- PÁGINA 2: RESUMEN EJECUTIVO Y ALCANCE REAL ---
             story.append(Paragraph("1. Resumen Ejecutivo", h1_style))
             story.append(Paragraph(
                 f"Este reporte formal documenta las proyecciones financieras y simulaciones de estrés "
@@ -1071,10 +1081,9 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
                 f"los multiplicadores automáticos definidos en base a indexadores operativos clave.", body_style
             ))
             
-            # NUEVO: Bloque descriptivo transparente de categorías evaluadas
             story.append(Spacer(1, 5))
             story.append(Paragraph("2. Alcance y Categorías Evaluadas en este Informe", h1_style))
-            story.append(Paragraph("Cualquier usuario que revise este documento debe notar que los datos consolidados corresponden estrictamente a la siguiente estructura seleccionada:", body_style))
+            story.append(Paragraph("Los datos consolidados corresponden estrictamente a las líneas presupuestarias con representación e impacto real según los filtros seleccionados:", body_style))
             
             alcance_data = [
                 [Paragraph("<b>Vicepresidencias (VPs):</b>", body_style), Paragraph(vps_txt, body_style)],
@@ -1117,7 +1126,6 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
             story.append(Spacer(1, 15))
             story.append(Paragraph("4. Resumen Quinquenal Consolidado (2027 - 2031)", h1_style))
             
-            # Tabla Dinámica 2027 vs 2031 basada en los filtros
             tabla_vals = [["Año Financiero", "Presupuesto Simulado Consolidado (USD)"]]
             if not df_final_proy.empty:
                 df_melt_pdf = df_final_proy[['Classif'] + [f'Final_{a}' for a in años_quinquenio]].melt(id_vars=['Classif'], var_name='Año', value_name='Monto')
