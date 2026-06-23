@@ -757,6 +757,7 @@ if app_mode == "📊 Forecast Operacional (5+7)":
 
 # ============================================================================
 # ============================================================================
+# ============================================================================
 # MÓDULO 2: PROYECCIÓN ESTRATÉGICA QUINQUENAL (2027-2031)
 # ============================================================================
 # ============================================================================
@@ -900,6 +901,46 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
         fig_barras.update_layout(yaxis_tickformat="$,.0f")
         st.plotly_chart(fig_barras, use_container_width=True)
 
+        # --------------------------------------------------------------------
+        # NUEVO GRÁFICO AGREGADO: COMPARACIÓN DIRECTA BASE VS ESTRESADO (2027)
+        # --------------------------------------------------------------------
+        st.markdown("#### ⚖️ Comparación Detallada: Presupuesto Base vs Estresado por Clasificación (Año Target 2027)")
+        
+        # Agrupar datos por Classif tanto para el escenario base como para el estresado
+        base_agrupado = df_estrat.groupby('Classif')['Base_FY27'].sum().reset_index()
+        estres_agrupado = df_estrat.groupby('Classif')['Final_FY27'].sum().reset_index()
+        
+        # Unificar en una estructura apta para Plotly Express
+        df_comp_grafico = base_agrupado.merge(estres_agrupado, on='Classif')
+        df_comp_melted = df_comp_grafico.melt(
+            id_vars=['Classif'], 
+            value_vars=['Base_FY27', 'Final_FY27'],
+            var_name='Escenario', 
+            value_name='Presupuesto'
+        )
+        # Limpiar etiquetas de la leyenda
+        df_comp_melted['Escenario'] = df_comp_melted['Escenario'].map({'Base_FY27': 'Proyección Base', 'Final_FY27': 'Proyección Estresada'})
+        
+        fig_comparativo = px.bar(
+            df_comp_melted,
+            x="Classif",
+            y="Presupuesto",
+            color="Escenario",
+            barmode="group",
+            text="Presupuesto",
+            title=f"Impacto de Parámetros en Categorías de Gasto (Escenario: {escenario})",
+            color_discrete_map={'Proyección Base': '#1f77b4', 'Proyección Estresada': '#d62728' if delta_usd >= 0 else '#2ca02c'}
+        )
+        fig_comparativo.update_traces(texttemplate='$%{text:,.0f}', textposition='outside')
+        fig_comparativo.update_layout(
+            yaxis_tickformat="$,.0f",
+            xaxis_title="Clasificación de Gasto",
+            yaxis_title="Presupuesto en USD",
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        )
+        st.plotly_chart(fig_comparativo, use_container_width=True, key="grafico_comparativo_base_estres")
+        # --------------------------------------------------------------------
+
     with tab_est2:
         st.markdown("**Inspector Semántico:** Revisa qué celdas detectó el algoritmo basándose en las descripciones y la clasificación de mano de obra.")
         df_verif = df_estrat[cols_existentes + ['Factor_Estrés_Fila', 'Base_FY27', 'Final_FY27']].copy()
@@ -978,7 +1019,7 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
             chart.set_title({'name': 'Evolución del Presupuesto (2027-2031)'})
             chart.set_x_axis({'name': 'Año Operativo'})
             chart.set_y_axis({'name': 'Costo (USD)', 'num_format': '$#,##0'})
-            chart.set_size({'width': 550, 'height': 350})
+            chart.set_size({'width': 550, 'height': 350})\
             
             worksheet.insert_chart(16, start_col, chart)
             
