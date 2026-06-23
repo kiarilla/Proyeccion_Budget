@@ -757,7 +757,6 @@ if app_mode == "📊 Forecast Operacional (5+7)":
 
 # ============================================================================
 # ============================================================================
-# ============================================================================
 # MÓDULO 2: PROYECCIÓN ESTRATÉGICA QUINQUENAL (2027-2031)
 # ============================================================================
 # ============================================================================
@@ -789,6 +788,13 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
     slider_dolar_pct = st.sidebar.slider("Variación Tipo de Cambio / USD", -100.0, 100.0, val_dolar, step=0.1)
     slider_labor_pct = st.sidebar.slider("Variación Costo Mano de Obra", -100.0, 100.0, val_labor, step=0.1)
 
+    # NUEVO: Selectores interactivos para definir Año Base y Año Proyectado Objetivo en el Gráfico de Líneas
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("📅 Períodos del Gráfico Temporal")
+    lista_anios_disponibles = ['2024', '2026', '2027', '2028', '2029', '2030', '2031']
+    anio_base_sel = st.sidebar.selectbox("Seleccione Año Base:", lista_anios_disponibles, index=1) # Default 2026
+    anio_proy_sel = st.sidebar.selectbox("Seleccione Año Proyectado Objetivo:", [a for a in lista_anios_disponibles if a != anio_base_sel], index=1) # Default 2027
+
     @st.cache_data
     def cargar_hojas_estratejicas(path):
         return pd.read_excel(path, sheet_name="BUDGET 2024 - 2028"), pd.read_excel(path, sheet_name="BUDGET 2025 - 2029"), pd.read_excel(path, sheet_name="BUDGET 2026 - 2030")
@@ -811,7 +817,6 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
     f26 = pd.to_numeric(df_estrat['FY26'], errors='coerce').fillna(0)
 
     # --- MÉTODO ÚNICO: Tendencia Limpia 2024 a 2026 sin Inflación ---
-    # Calculamos el CAGR entre 2024 y 2026. Limitamos saltos absurdos entre -5% y +10% anual.
     tasa_crecimiento = np.where(f24 > 0, (f26 / (f24 + 1e-6)) ** (1/2), 1.0).clip(0.95, 1.10)
     
     df_estrat['Base_FY27'] = f26 * tasa_crecimiento
@@ -826,20 +831,12 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
         classif = str(fila.get('Classif', '')).lower()
         
         mult = 1.0
-        
-        # Mano de Obra
         if 'labor' in classif or any(p in item for p in ['remuneracion', 'sueldo', 'honorario', 'mano de obra', 'bono', 'dotacion']):
             mult += (slider_labor_pct / 100.0)
-            
-        # Combustible
         if any(p in item for p in ['diesel', 'combustible', 'petroleo', 'gasoil']) and 'servicio' not in item:
             mult += (slider_fuel_pct / 100.0)
-            
-        # Energía
         if any(p in item for p in ['energia electrica', 'kwh', 'tarifa electrica']):
             mult += (slider_power_pct / 100.0)
-            
-        # Dólar (Contratos Extranjeros / Repuestos)
         if any(p in item for p in ['foreign', 'usd', 'importado', 'licencia corporativa']):
             mult += (slider_dolar_pct / 100.0)
             
@@ -858,9 +855,15 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
         
     suma_pesos = df_estrat[[f'peso_{m}' for m in meses_cal]].sum(axis=1)
     
+    # Generar distribuciones mensuales proyectadas para todos los años del quinquenio basándonos en la curva estacional base
     for m in meses_cal:
         peso_ajustado = np.where(suma_pesos > 0, df_estrat[f'peso_{m}'] / (suma_pesos + 1e-6), 1.0/12.0)
+        df_estrat[f'{m}-24'] = df_estrat['FY24'] * peso_ajustado
         df_estrat[f'{m}-27'] = df_estrat['Final_FY27'] * peso_ajustado
+        df_estrat[f'{m}-28'] = df_estrat['Final_FY28'] * peso_ajustado
+        df_estrat[f'{m}-29'] = df_estrat['Final_FY29'] * peso_ajustado
+        df_estrat[f'{m}-30'] = df_estrat['Final_FY30'] * peso_ajustado
+        df_estrat[f'{m}-31'] = df_estrat['Final_FY31'] * peso_ajustado
 
     cols_salida = cols_existentes + [f'{m}-27' for m in meses_cal] + [f'Final_{a}' for a in años_quinquenio]
     df_final_proy = df_estrat[cols_salida].copy()
@@ -873,8 +876,8 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
 
     st.markdown("### Resumen de KPIs (Año 2027)")
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Proyección Base FY27", f"${tot_fy27_base:,.0f}")
-    col2.metric("Proyección Estresada FY27", f"${tot_fy27_estres:,.0f}")
+    col1.metric(f"Proyección Base FY27", f"${tot_fy27_base:,.0f}")
+    col2.metric(f"Proyección Simulada FY27", f"${tot_fy27_estres:,.0f}")
     col3.metric("Impacto Neto Operativo", f"${delta_usd:,.0f}", f"{pct_var:+.2f}%", delta_color="inverse")
     col4.metric("Escenario de Riesgo", escenario)
 
@@ -894,51 +897,63 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
         fig_barras = px.bar(
             df_g_anual, 
             x="Año", y="Monto", color="Classif", 
-            title="Presupuesto Multianual Reconstruido y Estresado (USD Detallado)", 
+            title="Presupuesto Multianual Reconstruido y Simulado (USD Detallado)", 
             color_discrete_sequence=px.colors.qualitative.Safe
         )
-        # Forzar formato detallado en el hover y eje Y sin redondear a millones
         fig_barras.update_layout(yaxis_tickformat="$,.0f")
         st.plotly_chart(fig_barras, use_container_width=True)
 
         # --------------------------------------------------------------------
-        # NUEVO GRÁFICO AGREGADO: COMPARACIÓN DIRECTA BASE VS ESTRESADO (2027)
+        # NUEVO GRÁFICO AGREGADO: LÍNEAS TEMPORALES MENSUALES (BASE VS PROYECTADO SIMULADO)
         # --------------------------------------------------------------------
-        st.markdown("#### ⚖️ Comparación Detallada: Presupuesto Base vs Estresado por Clasificación (Año Target 2027)")
-        
-        # Agrupar datos por Classif tanto para el escenario base como para el estresado
-        base_agrupado = df_estrat.groupby('Classif')['Base_FY27'].sum().reset_index()
-        estres_agrupado = df_estrat.groupby('Classif')['Final_FY27'].sum().reset_index()
-        
-        # Unificar en una estructura apta para Plotly Express
-        df_comp_grafico = base_agrupado.merge(estres_agrupado, on='Classif')
-        df_comp_melted = df_comp_grafico.melt(
-            id_vars=['Classif'], 
-            value_vars=['Base_FY27', 'Final_FY27'],
-            var_name='Escenario', 
-            value_name='Presupuesto'
+        st.markdown(f"#### 📈 Curva Mensual Temporal: Año Base {anio_base_sel} vs Año Proyectado (Simulado) {anio_proy_sel}")
+        st.markdown("Las líneas representan los montos agregados mensuales y se recalculan al mover los parámetros de sensibilidad.")
+
+        # Obtener sufijos de columnas según la selección ('24', '26', '27', etc.)
+        sufijo_base = anio_base_sel[-2:]
+        sufijo_proy = anio_proy_sel[-2:]
+
+        # Construir lista de columnas mensuales correspondientes
+        cols_meses_base = [f"{m}-{sufijo_base}" for m in meses_cal]
+        cols_meses_proy = [f"{m}-{sufijo_proy}" for m in meses_cal]
+
+        # Calcular totales mensuales consolidados
+        totales_mensuales_base = [df_estrat[col].sum() for col in cols_meses_base]
+        totales_mensuales_proy = [df_estrat[col].sum() for col in cols_meses_proy]
+
+        # Estructurar Dataframe para el gráfico lineal
+        df_lineas_trend = pd.DataFrame({
+            "Mes": meses_cal * 2,
+            "Monto": totales_mensuales_base + totales_mensuales_proy,
+            "Año / Escenario": [f"Año Base ({anio_base_sel})"] * 12 + [f"Año Proyectado Simulado ({anio_proy_sel})"] * 12
+        })
+
+        # Mapeo de nombres completos de meses para el Eje X interactivo
+        meses_largos = {"Jan": "Ene", "Feb": "Feb", "Mar": "Mar", "Apr": "Abr", "May": "May", "Jun": "Jun", 
+                        "Jul": "Jul", "Aug": "Ago", "Sep": "Sep", "Oct": "Oct", "Nov": "Nov", "Dec": "Dic"}
+        df_lineas_trend["Mes"] = df_lineas_trend["Mes"].map(meses_largos)
+
+        fig_lineas = px.line(
+            df_lineas_trend,
+            x="Mes",
+            y="Monto",
+            color="Año / Escenario",
+            markers=True,
+            title=f"Evolución de Costos Mensuales — Impacto del Escenario ({escenario})",
+            color_discrete_map={
+                f"Año Base ({anio_base_sel})": "#457b9d",
+                f"Año Proyectado Simulado ({anio_proy_sel})": "#e63946" if delta_usd >= 0 else "#2a9d8f"
+            }
         )
-        # Limpiar etiquetas de la leyenda
-        df_comp_melted['Escenario'] = df_comp_melted['Escenario'].map({'Base_FY27': 'Proyección Base', 'Final_FY27': 'Proyección Estresada'})
-        
-        fig_comparativo = px.bar(
-            df_comp_melted,
-            x="Classif",
-            y="Presupuesto",
-            color="Escenario",
-            barmode="group",
-            text="Presupuesto",
-            title=f"Impacto de Parámetros en Categorías de Gasto (Escenario: {escenario})",
-            color_discrete_map={'Proyección Base': '#1f77b4', 'Proyección Estresada': '#d62728' if delta_usd >= 0 else '#2ca02c'}
-        )
-        fig_comparativo.update_traces(texttemplate='$%{text:,.0f}', textposition='outside')
-        fig_comparativo.update_layout(
+
+        fig_lineas.update_layout(
+            xaxis_title="Meses del Período",
+            yaxis_title="Monto Total General ($)",
             yaxis_tickformat="$,.0f",
-            xaxis_title="Clasificación de Gasto",
-            yaxis_title="Presupuesto en USD",
+            hovermode="x unified",
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
         )
-        st.plotly_chart(fig_comparativo, use_container_width=True, key="grafico_comparativo_base_estres")
+        st.plotly_chart(fig_lineas, use_container_width=True, key="grafico_lineas_mensual_quinquenal")
         # --------------------------------------------------------------------
 
     with tab_est2:
@@ -951,7 +966,7 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
             use_container_width=True,
             column_config={
                 "Base_FY27": st.column_config.NumberColumn("Base Original FY27", format="$%.0f"),
-                "Final_FY27": st.column_config.NumberColumn("Estresado FY27", format="$%.0f"),
+                "Final_FY27": st.column_config.NumberColumn("Simulado FY27", format="$%.0f"),
                 "Factor_Estrés_Fila": st.column_config.NumberColumn("Multiplicador", format="%.3f")
             }
         )
@@ -963,23 +978,19 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
         from io import BytesIO
         output_excel = BytesIO()
         
-        # Usamos XlsxWriter para incrustar el panel de parámetros y el gráfico
         with pd.ExcelWriter(output_excel, engine="xlsxwriter") as writer:
             df_final_proy.to_excel(writer, sheet_name="Proyeccion_Estrategica", index=False)
             
             workbook = writer.book
             worksheet = writer.sheets["Proyeccion_Estrategica"]
             
-            # Formatos de Excel
             money_fmt = workbook.add_format({'num_format': '$#,##0'})
             bold_fmt = workbook.add_format({'bold': True})
             header_fmt = workbook.add_format({'bold': True, 'bg_color': '#D9E1F2', 'border': 1})
             
-            # Aplicar formato de moneda a los datos exportados
             for col_num in range(5, len(df_final_proy.columns)):
                 worksheet.set_column(col_num, col_num, 15, money_fmt)
             
-            # --- TABLA DE PARÁMETROS SEPARADA A LA DERECHA ---
             start_col = len(df_final_proy.columns) + 2
             
             worksheet.write(1, start_col, "Tabla de Sensibilidad", header_fmt)
@@ -997,7 +1008,6 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
             worksheet.write(5, start_col, "Variación Mano de Obra", bold_fmt)
             worksheet.write(5, start_col+1, f"{slider_labor_pct}%")
 
-            # --- TABLA RESUMEN PARA EL GRÁFICO NATIVO DE EXCEL ---
             worksheet.write(8, start_col, "Año", header_fmt)
             worksheet.write(8, start_col+1, "Gasto Total (USD)", header_fmt)
             
@@ -1007,7 +1017,6 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
                 worksheet.write(9+i, start_col, año)
                 worksheet.write(9+i, start_col+1, tot, money_fmt)
 
-            # --- CREACIÓN DEL GRÁFICO DENTRO DE EXCEL ---
             chart = workbook.add_chart({'type': 'column'})
             chart.add_series({
                 'name': 'Proyección Quinquenal',
@@ -1019,7 +1028,7 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
             chart.set_title({'name': 'Evolución del Presupuesto (2027-2031)'})
             chart.set_x_axis({'name': 'Año Operativo'})
             chart.set_y_axis({'name': 'Costo (USD)', 'num_format': '$#,##0'})
-            chart.set_size({'width': 550, 'height': 350})\
+            chart.set_size({'width': 550, 'height': 350})
             
             worksheet.insert_chart(16, start_col, chart)
             
@@ -1029,4 +1038,5 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
             file_name="Planificacion_Estrategica_Visual.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             use_container_width=True
+        )
         )
