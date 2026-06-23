@@ -892,7 +892,8 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
         df_estrat[f'{m}-30'] = df_estrat['Final_FY30'] * peso_ajustado
         df_estrat[f'{m}-31'] = df_estrat['Final_FY31'] * peso_ajustado
 
-    cols_salida = cols_existentes + [f'Final_{a}' for a in todos_los_anios] + [f'{m}-27' for m in meses_cal]
+    # CRÍTICO: Aquí excluimos por completo los años históricos (FY24, FY26) de la salida de la sábana de datos
+    cols_salida = cols_existentes + [f'Final_{a}' for a in años_quinquenio] + [f'{m}-27' for m in meses_cal]
     df_final_proy = df_estrat[cols_salida].copy()
 
     # --- CONFIGURACIÓN DINÁMICA DE LA SECCIÓN DE KPIs ---
