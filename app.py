@@ -892,13 +892,13 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
         df_estrat[f'{m}-30'] = df_estrat['Final_FY30'] * peso_ajustado
         df_estrat[f'{m}-31'] = df_estrat['Final_FY31'] * peso_ajustado
 
-    cols_salida = cols_existentes + [f'{m}-27' for m in meses_cal] + [f'Final_{a}' for a in años_quinquenio]
+    # Reestructuración limpia de las columnas de salida para asegurar consistencia
+    cols_salida = cols_existentes + [f'Final_{a}' for a in todos_los_anios] + [f'{m}-27' for m in meses_cal]
     df_final_proy = df_estrat[cols_salida].copy()
 
     # --- CONFIGURACIÓN DINÁMICA DE LA SECCIÓN DE KPIs ---
     st.markdown("### 🏆 Resumen de KPIs Personalizado")
     
-    # Selectores en fila para elegir años de comparación en el panel superior
     col_sel_1, col_sel_2 = st.columns(2)
     with col_sel_1:
         kpi_base_year = st.selectbox("Comparar Año Base:", ['2024', '2026', '2027', '2028', '2029', '2030', '2031'], index=2, key="kpi_base_select")
@@ -908,7 +908,6 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
     sufijo_kpi_base = f"FY{kpi_base_year[-2:]}"
     sufijo_kpi_sim = f"FY{kpi_sim_year[-2:]}"
 
-    # Cálculo dinámico en base a la selección del usuario
     tot_kpi_base = df_estrat[f'Base_{sufijo_kpi_base}'].sum()
     tot_kpi_simulado = df_estrat[f'Final_{sufijo_kpi_sim}'].sum()
     delta_kpi_usd = tot_kpi_simulado - tot_kpi_base
@@ -1004,13 +1003,70 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
         df_verif = df_verif[df_verif['Factor_Estrés_Fila'] != 1.0]
         st.dataframe(df_verif.head(200), use_container_width=True)
 
+    # ------------------------------------------------------------------------
+    # PESTAÑA: MOTOR DE REPORTES EXCEL CON RESUMEN Y GRÁFICO CORREGIDO
+    # ------------------------------------------------------------------------
     with tab_est3:
-        st.subheader("Motor de Reportes Excel")
+        st.subheader("💾 Motor de Reportes Excel con Gráficos Integrados")
+        st.markdown("Genera una sábana analítica estructurada junto con un cuadro dinámico resumen y gráfico nativo para presentaciones corporativas.")
+        
         from io import BytesIO
         output_excel = BytesIO()
+        
         with pd.ExcelWriter(output_excel, engine="xlsxwriter") as writer:
             df_final_proy.to_excel(writer, sheet_name="Proyeccion_Estrategica", index=False)
-        st.download_button("Descargar Reporte Quinquenal Excel", data=output_excel.getvalue(), file_name="Planificacion_Estrategica_Visual.xlsx", use_container_width=True)
+            
+            workbook  = writer.book
+            worksheet = writer.sheets["Proyeccion_Estrategica"]
+            
+            # Formatos de Celda para Reportabilidad Nativa
+            header_fmt = workbook.add_format({
+                'bold': True, 'text_wrap': True, 'fg_color': '#1d3557', 
+                'font_color': 'white', 'border': 1, 'align': 'center', 'valign': 'vcenter'
+            })
+            money_fmt  = workbook.add_format({'num_format': '$#,##0', 'border': 1})
+            
+            # Autoajuste dinámico del ancho de columnas
+            for col_num, col_name in enumerate(df_final_proy.columns):
+                max_len = max(df_final_proy[col_name].astype(str).map(len).max(), len(col_name)) + 3
+                worksheet.set_column(col_num, col_num, min(max_len, 30))
+                
+            # --- TABLA RESUMEN PARA EL GRÁFICO NATIVO DE EXCEL ---
+            start_col = len(df_final_proy.columns) + 2
+            
+            worksheet.write(8, start_col, "Año", header_fmt)
+            worksheet.write(8, start_col+1, "Gasto Total (USD)", header_fmt)
+            
+            # Recopilación de totales limpios y alineados con la lógica estratégica
+            totals = [df_final_proy[f'Final_{a}'].sum() for a in años_quinquenio]
+            
+            for i, (año, tot) in enumerate(zip(['2027', '2028', '2029', '2030', '2031'], totals)):
+                worksheet.write(9+i, start_col, año)
+                worksheet.write(9+i, start_col+1, tot, money_fmt)
+
+            # --- CREACIÓN DEL GRÁFICO DENTRO DE EXCEL ---
+            chart = workbook.add_chart({'type': 'column'})
+            chart.add_series({
+                'name': 'Proyección Quinquenal',
+                'categories': ['Proyeccion_Estrategica', 9, start_col, 13, start_col],
+                'values':     ['Proyeccion_Estrategica', 9, start_col+1, 13, start_col+1],
+                'data_labels': {'value': True},
+                'fill':   {'color': '#4F81BD'}
+            })
+            chart.set_title({'name': 'Evolución del Presupuesto (2027-2031)'})
+            chart.set_x_axis({'name': 'Año Operativo'})
+            chart.set_y_axis({'name': 'Costo (USD)', 'num_format': '$#,##0'})
+            chart.set_size({'width': 550, 'height': 350})
+            
+            worksheet.insert_chart(16, start_col, chart)
+            
+        st.download_button(
+            label="Descargar Reporte Quinquenal (Incluye Gráficos y Variables en Excel)",
+            data=output_excel.getvalue(),
+            file_name="Planificacion_Estrategica_Visual.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True
+        )
 
     # ------------------------------------------------------------------------
     # PESTAÑA: MOTOR DE REPORTE EJECUTIVO PDF - TOTALMENTE EN SINCRONÍA
