@@ -1039,4 +1039,4 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             use_container_width=True
         )
-        )
+        
