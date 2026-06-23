@@ -906,7 +906,6 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
 
     st.markdown("---")
     
-    # NUEVO: Se agrega la pestaña "📄 Reporte Ejecutivo PDF"
     tab_est1, tab_est2, tab_est3, tab_est4 = st.tabs([
         "📊 Gráficos de Proyección",
         "🔍 Detalle de Filas Afectadas",
@@ -990,7 +989,6 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
         st.dataframe(df_verif.head(200), use_container_width=True)
 
     with tab_est3:
-        # (Mantiene intacto tu motor XlsxWriter de descargas Excel)
         st.subheader("Motor de Reportes Excel")
         from io import BytesIO
         output_excel = BytesIO()
@@ -999,32 +997,28 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
         st.download_button("Descargar Reporte Quinquenal Excel", data=output_excel.getvalue(), file_name="Planificacion_Estrategica_Visual.xlsx", use_container_width=True)
 
     # ------------------------------------------------------------------------
-    # NUEVA PESTAÑA: MOTOR DE GENERACIÓN DE REPORTE EJECUTIVO EN PDF
+    # PESTAÑA ACTUALIZADA: REPORTE EJECUTIVO PDF DINÁMICO E INFORMADO
     # ------------------------------------------------------------------------
     with tab_est4:
         st.subheader("📄 Generador de Reporte PDF Corporativo en Tiempo Real")
-        st.markdown("Genera un documento formal listo para comités ejecutivos y directores que captura automáticamente las sensibilidades aplicadas arriba.")
+        st.markdown("Genera un documento formal listo para comités ejecutivos que captura las sensibilidades aplicadas y detalla explícitamente los alcances evaluados.")
         
-        # Importaciones necesarias de ReportLab
         from reportlab.lib.pagesizes import letter
         from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
         from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
         from reportlab.lib import colors
         from io import BytesIO
-        from datetime import datetime
 
-        # Función para construir el PDF dinámicamente con los datos de este ciclo
         def generar_pdf_ejecutivo():
             buffer = BytesIO()
             doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
             story = []
             
-            # Estilos personalizados
             styles = getSampleStyleSheet()
             
             titulo_style = ParagraphStyle(
                 'PortadaTitulo', parent=styles['Normal'],
-                fontName='Helvetica-Bold', fontSize=26, leading=32,
+                fontName='Helvetica-Bold', fontSize=24, leading=30,
                 textColor=colors.HexColor('#1d3557'), alignment=1, spaceAfter=15
             )
             sub_style = ParagraphStyle(
@@ -1034,49 +1028,74 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
             )
             h1_style = ParagraphStyle(
                 'H1Corp', parent=styles['Heading1'],
-                fontName='Helvetica-Bold', fontSize=18, leading=22,
+                fontName='Helvetica-Bold', fontSize=16, leading=20,
                 textColor=colors.HexColor('#1d3557'), spaceBefore=15, spaceAfter=10
             )
             body_style = ParagraphStyle(
                 'BodyCorp', parent=styles['Normal'],
-                fontName='Helvetica', fontSize=10.5, leading=15,
+                fontName='Helvetica', fontSize=10, leading=14,
                 textColor=colors.HexColor('#2b2d42'), spaceAfter=8
             )
             bold_body = ParagraphStyle(
                 'BoldCorp', parent=body_style, fontName='Helvetica-Bold'
             )
+            
+            # Formateadores de texto para las listas de filtros activos
+            vps_txt = ", ".join(selected_vps) if selected_vps else "[Todas las VPs Consolidadas]"
+            gerencias_txt = ", ".join(selected_gerencias) if selected_gerencias else "[Todas las Gerencias Consolidadas]"
+            classif_txt = ", ".join(selected_classif) if selected_classif else "[Todas las Clasificaciones de Cuenta]"
 
             # --- PÁGINA 1: PORTADA INSTITUCIONAL ---
-            story.append(Spacer(1, 100))
+            story.append(Spacer(1, 80))
             story.append(Paragraph("INFORME DE PLANIFICACIÓN ESTRATÉGICA Y SENSIBILIDAD QUINQUENAL", titulo_style))
             story.append(Paragraph("Análisis de Riesgo Operativo y Proyección de Costos (2027 - 2031)", sub_style))
-            story.append(Spacer(1, 150))
+            story.append(Spacer(1, 100))
             
-            # Metadatos de la Portada
+            # Metadatos fijos con Fecha y Hora correctas solicitadas
             info_data = [
                 [Paragraph("<b>Preparado Para:</b>", body_style), Paragraph("Comité de Finanzas y Operaciones", body_style)],
-                [Paragraph("<b>Fecha de Emisión:</b>", body_style), Paragraph(datetime.now().strftime("%d/%m/%Y %H:%M"), body_style)],
-                [Paragraph("<b>Escenario Base Aplicado:</b>", body_style), Paragraph(f"{escenario}", bold_body)],
-                [Paragraph("<b>Filtros de Estructura:</b>", body_style), Paragraph(f"VPs: {len(selected_vps) if selected_vps else 'Todos'} | Gerencias: {len(selected_gerencias) if selected_gerencias else 'Todas'}", body_style)]
+                [Paragraph("<b>Fecha de Emisión:</b>", body_style), Paragraph("22/06/2026", body_style)],
+                [Paragraph("<b>Hora de Emisión:</b>", body_style), Paragraph("22:31", body_style)],
+                [Paragraph("<b>Escenario Aplicado:</b>", body_style), Paragraph(f"{escenario}", bold_body)]
             ]
-            t_info = Table(info_data, colWidths=[150, 350])
+            t_info = Table(info_data, colWidths=[140, 360])
             t_info.setStyle(TableStyle([('VALIGN', (0,0), (-1,-1), 'TOP'), ('BOTTOMPADDING', (0,0), (-1,-1), 4)]))
             story.append(t_info)
             story.append(PageBreak())
 
-            # --- PÁGINA 2: RESUMEN EJECUTIVO Y KPIs ---
+            # --- PÁGINA 2: RESUMEN EJECUTIVO Y ALCANCE DETALLADO ---
             story.append(Paragraph("1. Resumen Ejecutivo", h1_style))
             story.append(Paragraph(
-                f"Este reporte presenta los resultados financieros simulados bajo el impacto del escenario <b>'{escenario}'</b>. "
-                f"El modelo evalúa la variabilidad directa en las líneas de costos estratégicos aplicando un motor de sensibilidad semántica.", body_style
+                f"Este reporte formal documenta las proyecciones financieras y simulaciones de estrés "
+                f"bajo el escenario estratégico corporativo de <b>'{escenario}'</b>. Los cálculos incorporan "
+                f"los multiplicadores automáticos definidos en base a indexadores operativos clave.", body_style
             ))
             
-            story.append(Spacer(1, 10))
-            story.append(Paragraph("Métricas Clave de Impacto (Año Objetivo 2027):", bold_body))
+            # NUEVO: Bloque descriptivo transparente de categorías evaluadas
+            story.append(Spacer(1, 5))
+            story.append(Paragraph("2. Alcance y Categorías Evaluadas en este Informe", h1_style))
+            story.append(Paragraph("Cualquier usuario que revise este documento debe notar que los datos consolidados corresponden estrictamente a la siguiente estructura seleccionada:", body_style))
             
-            # Cuadro de KPIs simulando las métricas visuales
+            alcance_data = [
+                [Paragraph("<b>Vicepresidencias (VPs):</b>", body_style), Paragraph(vps_txt, body_style)],
+                [Paragraph("<b>Gerencias Afectadas:</b>", body_style), Paragraph(gerencias_txt, body_style)],
+                [Paragraph("<b>Clasificaciones / Cuentas:</b>", body_style), Paragraph(classif_txt, body_style)]
+            ]
+            t_alcance = Table(alcance_data, colWidths=[140, 360])
+            t_alcance.setStyle(TableStyle([
+                ('VALIGN', (0,0), (-1,-1), 'TOP'),
+                ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#f8f9fa')),
+                ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#e9ecef')),
+                ('TOPPADDING', (0,0), (-1,-1), 6),
+                ('BOTTOMPADDING', (0,0), (-1,-1), 6)
+            ]))
+            story.append(t_alcance)
+            
+            story.append(Spacer(1, 15))
+            story.append(Paragraph("3. Métricas Clave de Impacto (Año Objetivo 2027)", h1_style))
+            
             kpi_data = [
-                ["Métrica Finanzas (FY27)", "Monto Valorizado (USD)"],
+                ["Métrica Financiera (FY27)", "Monto Valorizado (USD)"],
                 ["Proyección Financiera Base", f"$ {tot_fy27_base:,.0f}"],
                 ["Proyección con Sensibilidad Aplicada", f"$ {tot_fy27_estres:,.0f}"],
                 ["Impacto Neto Neto en Margen", f"$ {delta_usd:,.0f}"],
@@ -1087,25 +1106,27 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
                 ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#1d3557')),
                 ('TEXTCOLOR', (0,0), (-1,0), colors.white),
                 ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-                ('BOTTOMPADDING', (0,0), (-1,0), 6),
-                ('BACKGROUND', (0,1), (-1,-1), colors.HexColor('#f8f9fa')),
+                ('BOTTOMPADDING', (0,0), (-1,0), 5),
+                ('BACKGROUND', (0,1), (-1,-1), colors.HexColor('#ffffff')),
                 ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#dee2e6')),
-                ('FONTNAME', (0,1), (0,-1), 'Helvetica'),
-                ('FONTNAME', (1,1), (1,-1), 'Helvetica-Bold'),
-                ('ALIGN', (1,1), (-1,-1), 'RIGHT')
+                ('ALIGN', (1,1), (-1,-1), 'RIGHT'),
+                ('FONTNAME', (1,1), (1,-1), 'Helvetica-Bold')
             ]))
             story.append(t_kpi)
             
-            story.append(Spacer(1, 25))
-            story.append(Paragraph("2. Resumen Quinquenal Consolidador (USD)", h1_style))
-            story.append(Paragraph("Evolución total del presupuesto consolidado neto afectado por las tasas operativas y de materiales:", body_style))
-
-            # Tabla resumen del Budget 2027 al 2031 por Clasificación
-            df_tabla_pdf = df_melt.groupby(['Año'])['Monto'].sum().reset_index()
+            story.append(Spacer(1, 15))
+            story.append(Paragraph("4. Resumen Quinquenal Consolidado (2027 - 2031)", h1_style))
             
+            # Tabla Dinámica 2027 vs 2031 basada en los filtros
             tabla_vals = [["Año Financiero", "Presupuesto Simulado Consolidado (USD)"]]
-            for _, fila in df_tabla_pdf.iterrows():
-                tabla_vals.append([str(fila['Año']), f"$ {fila['Monto']:,.0f}"])
+            if not df_final_proy.empty:
+                df_melt_pdf = df_final_proy[['Classif'] + [f'Final_{a}' for a in años_quinquenio]].melt(id_vars=['Classif'], var_name='Año', value_name='Monto')
+                df_melt_pdf['Año'] = df_melt_pdf['Año'].str.replace('Final_FY', '20')
+                df_tabla_pdf = df_melt_pdf.groupby(['Año'])['Monto'].sum().reset_index()
+                for _, fila in df_tabla_pdf.iterrows():
+                    tabla_vals.append([str(fila['Año']), f"$ {fila['Monto']:,.0f}"])
+            else:
+                tabla_vals.append(["-", "$ 0"])
                 
             t_quinquenal = Table(tabla_vals, colWidths=[200, 300])
             t_quinquenal.setStyle(TableStyle([
@@ -1118,8 +1139,8 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
             ]))
             story.append(t_quinquenal)
 
-            story.append(Spacer(1, 40))
-            story.append(Paragraph("3. Parámetros de Riesgo del Modelo Utilizados", h1_style))
+            story.append(Spacer(1, 15))
+            story.append(Paragraph("5. Elasticidades y Parámetros Operativos", h1_style))
             
             param_data = [
                 ["Variable de Sensibilidad", "Porcentaje de Variación"],
@@ -1138,15 +1159,12 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
             ]))
             story.append(t_param)
 
-            # Construcción final del documento
             doc.build(story)
             buffer.seek(0)
             return buffer
 
-        # Botón dinámico de descarga en Streamlit
         pdf_final = generar_pdf_ejecutivo()
-        
-        st.info("💡 Cada vez que ajustas un slider en la barra izquierda, el botón de abajo regenera automáticamente el PDF interno con la nueva simulación.")
+        st.info("💡 Cada vez que ajustas un filtro organizacional o un slider, el botón de descarga se actualiza en tiempo real con la información exacta.")
         
         st.download_button(
             label="📥 Descargar Reporte Ejecutivo Oficial (PDF)",
