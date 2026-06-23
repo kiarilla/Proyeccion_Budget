@@ -787,12 +787,25 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
     slider_dolar_pct = st.sidebar.slider("Variación Tipo de Cambio / USD", -100.0, 100.0, val_dolar, step=0.1)
     slider_labor_pct = st.sidebar.slider("Variación Costo Mano de Obra", -100.0, 100.0, val_labor, step=0.1)
 
-    # Parámetros dinámicos para el gráfico temporal de líneas y selectores globales
+    # --- CORRECCIÓN DINÁMICA DE SELECTORES PARA EL GRÁFICO TEMPORAL ---
     st.sidebar.markdown("---")
     st.sidebar.subheader("📅 Períodos del Gráfico Temporal")
     lista_anios_disponibles = ['2024', '2026', '2027', '2028', '2029', '2030', '2031']
+    
+    # El año base por defecto es 2026 (Índice 1)
     anio_base_sel = st.sidebar.selectbox("Seleccione Año Base (Lateral):", lista_anios_disponibles, index=1)
-    anio_proy_sel = st.sidebar.selectbox("Seleccione Año Proyectado Objetivo (Lateral):", [a for a in lista_anios_disponibles if a != anio_base_sel], index=1)
+    
+    # Filtramos las opciones excluyendo el año base seleccionado
+    opciones_proyeccion = [a for a in lista_anios_disponibles if a != anio_base_sel]
+    
+    # Buscamos la posición del año '2027' en el subconjunto restante para evitar desfases o bloqueos
+    idx_defecto_proy = opciones_proyeccion.index('2027') if '2027' in opciones_proyeccion else 0
+    
+    anio_proy_sel = st.sidebar.selectbox(
+        "Seleccione Año Proyectado Objetivo (Lateral):", 
+        opciones_proyeccion, 
+        index=idx_defecto_proy
+    )
 
     @st.cache_data
     def cargar_hojas_estratejicas(path):
@@ -892,7 +905,7 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
         df_estrat[f'{m}-30'] = df_estrat['Final_FY30'] * peso_ajustado
         df_estrat[f'{m}-31'] = df_estrat['Final_FY31'] * peso_ajustado
 
-    # CRÍTICO: Aquí excluimos por completo los años históricos (FY24, FY26) de la salida de la sábana de datos
+    # CRÍTICO: Exclusión completa de los históricos (FY24, FY26) en la sábana descargable
     cols_salida = cols_existentes + [f'Final_{a}' for a in años_quinquenio] + [f'{m}-27' for m in meses_cal]
     df_final_proy = df_estrat[cols_salida].copy()
 
