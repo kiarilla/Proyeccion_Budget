@@ -574,4 +574,418 @@ if app_mode == "📊 Forecast Operacional (5+7)":
 
         with col_c1:
             st.markdown("**Forecast 5+7 vs Budget FY**")
-            fig_comp1 
+            fig_comp1 = plot_bar_comparison(
+                comp_df,
+                x_col="Classif",
+                budget_col="Budget_FY",
+                forecast_col="Forecast_5plus7",
+                title="",
+            )
+            st.plotly_chart(fig_comp1, use_container_width=True, key="comp_5plus7_vs_budget")
+
+        with col_c2:
+            st.markdown("**Forecast 5+7 vs Forecast Oficial**")
+            fig_comp2 = plot_bar_comparison(
+                comp_df,
+                x_col="Classif",
+                budget_col="Forecast_Oficial",
+                forecast_col="Forecast_5plus7",
+                title="",
+            )
+            st.plotly_chart(fig_comp2, use_container_width=True, key="comp_5plus7_vs_oficial")
+
+        st.subheader("Tabla Comparativa")
+        comp_df["Var_5plus7_vs_Budget_Pct"] = np.where(
+            comp_df["Budget_FY"].abs() > 0.01,
+            comp_df["Var_5plus7_vs_Budget"] / comp_df["Budget_FY"].abs() * 100,
+            0,
+        )
+        comp_df["Var_5plus7_vs_Oficial_Pct"] = np.where(
+            comp_df["Forecast_Oficial"].abs() > 0.01,
+            comp_df["Var_5plus7_vs_Oficial"] / comp_df["Forecast_Oficial"].abs() * 100,
+            0,
+        )
+        st.dataframe(
+            comp_df,
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "Budget_FY": st.column_config.NumberColumn(format="%.0f"),
+                "Forecast_Oficial": st.column_config.NumberColumn(format="%.0f"),
+                "Forecast_5plus7": st.column_config.NumberColumn(format="%.0f"),
+                "Var_5plus7_vs_Budget": st.column_config.NumberColumn(format="%.0f"),
+                "Var_5plus7_vs_Budget_Pct": st.column_config.NumberColumn(format="%.1f%%"),
+                "Var_5plus7_vs_Oficial": st.column_config.NumberColumn(format="%.0f"),
+                "Var_5plus7_vs_Oficial_Pct": st.column_config.NumberColumn(format="%.1f%%"),
+            },
+        )
+
+        st.markdown("---")
+        st.subheader("Top Desviaciones vs Budget (por Ítem)")
+        fig_topdev = plot_top_deviations(
+            top_deviations(deviation_df_f, by="Var_vs_Budget_Abs", n=20),
+            label_col="Desc Item",
+            title="",
+            n=20,
+        )
+        st.plotly_chart(fig_topdev, use_container_width=True, key="topdev_comp")
+
+    # Tab 6: Hallazgos y Propuesta de Mejora
+    with tabs[5]:
+        st.title("Hallazgos y Propuesta de Mejora")
+
+        st.markdown("""
+        ## Principales Hallazgos
+
+        ### 1. Ejecución por debajo del presupuesto en la mayoría de las partidas
+        El Forecast 5+7 proyecta un cierre de año **aproximadamente un 10% por debajo
+        del Budget FY** a nivel agregado. Esto es consistente con un patrón de
+        sub-ejecución presupuestaria observado en los primeros 5 meses del año.
+
+        Las partidas con mayor sub-ejecución son:
+        - **Spare Parts y S&C**: posiblemente por retrasos en adquisiciones o
+          renegociación de contratos.
+        - **Expenses y Contractors**: ejecución más lenta de lo presupuestado,
+          típico en servicios externalizados donde los contratos se activan
+          progresivamente.
+
+        ### 2. Energía (Power) es la única partida sobre el presupuesto
+        El gasto en energía eléctrica muestra una ejecución superior al budget,
+        reflejando posiblemente:
+        - Tarifas eléctricas mayores a las estimadas.
+        - Mayor consumo por ramp-up de producción.
+        - Costos de potencia contratada no considerados en el budget original.
+
+        ### 3. La estacionalidad del presupuesto es un activo informativo valioso
+        El perfil mensual del Budget contiene información sobre mantenciones
+        programadas, campañas estacionales y ciclos operacionales que un modelo
+        run-rate ignora por completo. Al incorporarlo como *prior* con
+        amortiguación no lineal, se obtiene un forecast más realista.
+
+        ### 4. Limitación de datos reales
+        Con solo 5 meses de datos reales, métodos estadísticos clásicos (ARIMA,
+        Holt-Winters) tienen poca capacidad predictiva. El enfoque híbrido
+        (real + perfil presupuestario ajustado) es el más robusto en este contexto.
+
+        ---
+
+        ## Propuesta de Mejora
+
+        ### Corto plazo (próximo ciclo de forecast)
+        1. **Revisión de supuestos de ejecución**: ajustar el factor de
+           amortiguación (`damp_factor`) por VP o Classif según patrones
+           históricos de ejecución.
+        2. **Identificar partidas con ejecución atípica**: las partidas con
+           ratios real/budget extremos (>2x o <0.5x) deben revisarse manualmente
+           para confirmar que no haya errores de imputación o cambios de alcance.
+        3. **Forecast móvil mensual**: actualizar la proyección cada mes
+           incorporando el nuevo dato real, reduciendo progresivamente la
+           incertidumbre.
+
+        ### Mediano plazo (próximo año)
+        4. **Modelo por segmento**: entrenar métodos distintos por Classif
+           (ej. Holt para Labor que es más estable, perfil escalado para
+           Contractors que tiene más variabilidad).
+        5. **Incorporar variables exógenas**: precio del cobre, tipo de cambio,
+           producción mensual (toneladas), leyes de mineral -- todas afectan
+           directamente los costos operacionales.
+        6. **Backtesting con datos históricos**: si se dispone de datos de años
+           anteriores (Budget 2024 parece existir en la hoja de control), se
+           puede hacer validación cruzada temporal más extensa.
+
+        ### Largo plazo (mejora continua)
+        7. **Pipeline automatizado**: integrar la carga de datos, proyección y
+           visualización en un proceso periódico (mensual) que se ejecute al
+           cierre contable.
+        8. **Alertas tempranas**: configurar umbrales de desviación que
+           disparen alertas cuando una partida se desvía significativamente
+           de su senda proyectada.
+        """)
+
+        st.info(
+            "Estos hallazgos y propuestas se basan exclusivamente en el análisis "
+            "cuantitativo de los datos disponibles (Ene--May). Se recomienda "
+            "validar con los gerentes de área antes de tomar decisiones."
+        )
+
+    # Tab 7: Exportar
+    with tabs[6]:
+        st.title("Exportar Datos")
+
+        st.subheader("Descargar Forecast 5+7")
+
+        col_x1, col_x2 = st.columns(2)
+
+        with col_x1:
+            csv = forecast_lines_f.to_csv(index=False)
+            st.download_button(
+                label="Descargar CSV",
+                data=csv,
+                file_name="forecast_5plus7.csv",
+                mime="text/csv",
+                use_container_width=True,
+            )
+
+        with col_x2:
+            from io import BytesIO
+            output = BytesIO()
+            with pd.ExcelWriter(output, engine="openpyxl") as writer:
+                forecast_lines_f.to_excel(writer, sheet_name="Forecast_5plus7", index=False)
+                agg_classif_f.to_excel(writer, sheet_name="Por_Classif", index=False)
+                agg_vp.to_excel(writer, sheet_name="Por_VP", index=False)
+                resultados_backtesting.to_excel(writer, sheet_name="Metodos", index=False)
+            st.download_button(
+                label="Descargar Excel",
+                data=output.getvalue(),
+                file_name="forecast_5plus7.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True,
+            )
+
+        st.markdown("---")
+        st.subheader("Vista previa - Forecast 5+7")
+        st.dataframe(
+            forecast_lines_f.sort_values("Forecast_5+7", ascending=False).head(100),
+            use_container_width=True,
+            hide_index=True,
+        )
+
+        st.markdown("---")
+        st.subheader("Resultados de Backtesting")
+        st.dataframe(resultados_backtesting, use_container_width=True, hide_index=True)
+
+
+# ============================================================================
+# ============================================================================
+# MÓDULO 2: PROYECCIÓN ESTRATÉGICA QUINQUENAL (2027-2031)
+# ============================================================================
+# ============================================================================
+
+elif app_mode == "📈 Proyección Estratégica (2027-2031)":
+    st.title("📈 Tablero Interactivo de Proyección Estratégica y KPIs")
+    st.markdown("Modelo de proyección histórica corregida (Basado en el crecimiento orgánico 2024-2026 sin inflación) con sensibilidad a variables operativas clave.")
+
+    st.sidebar.subheader("🎬 Escenarios Preconfigurados")
+    escenario = st.sidebar.selectbox("Seleccione un escenario estratégico:", [
+        "Manual / Personalizado",
+        "Crisis Global (+Combustible y Dólar)",
+        "Negociación Sindical (+Mano de Obra)",
+        "Eficiencia Operativa (-Costos Generales)"
+    ])
+
+    val_fuel, val_power, val_dolar, val_labor = 0.0, 0.0, 0.0, 0.0
+    if escenario == "Crisis Global (+Combustible y Dólar)":
+        val_fuel, val_power, val_dolar, val_labor = 25.0, 10.0, 15.0, 5.0
+    elif escenario == "Negociación Sindical (+Mano de Obra)":
+        val_fuel, val_power, val_dolar, val_labor = 5.0, 2.0, 2.0, 18.0
+    elif escenario == "Eficiencia Operativa (-Costos Generales)":
+        val_fuel, val_power, val_dolar, val_labor = -10.0, -5.0, -8.0, -5.0
+
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("🎛️ Parámetros de Sensibilidad (%)")
+    slider_fuel_pct = st.sidebar.slider("Variación Precio Diésel / Combustible", -100.0, 100.0, val_fuel, step=0.1)
+    slider_power_pct = st.sidebar.slider("Variación Tarifa Energía Eléctrica", -100.0, 100.0, val_power, step=0.1)
+    slider_dolar_pct = st.sidebar.slider("Variación Tipo de Cambio / USD", -100.0, 100.0, val_dolar, step=0.1)
+    slider_labor_pct = st.sidebar.slider("Variación Costo Mano de Obra", -100.0, 100.0, val_labor, step=0.1)
+
+    @st.cache_data
+    def cargar_hojas_estratejicas(path):
+        return pd.read_excel(path, sheet_name="BUDGET 2024 - 2028"), pd.read_excel(path, sheet_name="BUDGET 2025 - 2029"), pd.read_excel(path, sheet_name="BUDGET 2026 - 2030")
+
+    try:
+        b24, b25, b26 = cargar_hojas_estratejicas(file_path)
+    except Exception as e:
+        st.error(f"Error: Faltan pestañas históricas en el Excel subido. Detalle: {e}")
+        st.stop()
+
+    columnas_clave = ['CC', 'VP', 'Gerencia', 'Desc Item', 'Classif']
+    cols_existentes = [c for c in columnas_clave if c in b26.columns]
+    df_estrat = b26[cols_existentes].copy()
+
+    df_estrat = df_estrat.merge(b24[['CC', 'FY24']], on='CC', how='left')
+    df_estrat = df_estrat.merge(b26[['CC', 'FY26'] + [f'{m}-26' for m in ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']]], on='CC', how='left')
+    df_estrat.fillna(0, inplace=True)
+
+    f24 = pd.to_numeric(df_estrat['FY24'], errors='coerce').fillna(0)
+    f26 = pd.to_numeric(df_estrat['FY26'], errors='coerce').fillna(0)
+
+    # --- MÉTODO ÚNICO: Tendencia Limpia 2024 a 2026 sin Inflación ---
+    # Calculamos el CAGR entre 2024 y 2026. Limitamos saltos absurdos entre -5% y +10% anual.
+    tasa_crecimiento = np.where(f24 > 0, (f26 / (f24 + 1e-6)) ** (1/2), 1.0).clip(0.95, 1.10)
+    
+    df_estrat['Base_FY27'] = f26 * tasa_crecimiento
+    df_estrat['Base_FY28'] = df_estrat['Base_FY27'] * tasa_crecimiento
+    df_estrat['Base_FY29'] = df_estrat['Base_FY28'] * tasa_crecimiento
+    df_estrat['Base_FY30'] = df_estrat['Base_FY29'] * tasa_crecimiento
+    df_estrat['Base_FY31'] = df_estrat['Base_FY30'] * tasa_crecimiento
+
+    # --- MAPEO SEMÁNTICO POR FILA ---
+    def evaluar_afectacion(fila):
+        item = str(fila.get('Desc Item', '')).lower()
+        classif = str(fila.get('Classif', '')).lower()
+        
+        mult = 1.0
+        
+        # Mano de Obra
+        if 'labor' in classif or any(p in item for p in ['remuneracion', 'sueldo', 'honorario', 'mano de obra', 'bono', 'dotacion']):
+            mult += (slider_labor_pct / 100.0)
+            
+        # Combustible
+        if any(p in item for p in ['diesel', 'combustible', 'petroleo', 'gasoil']) and 'servicio' not in item:
+            mult += (slider_fuel_pct / 100.0)
+            
+        # Energía
+        if any(p in item for p in ['energia electrica', 'kwh', 'tarifa electrica']):
+            mult += (slider_power_pct / 100.0)
+            
+        # Dólar (Contratos Extranjeros / Repuestos)
+        if any(p in item for p in ['foreign', 'usd', 'importado', 'licencia corporativa']):
+            mult += (slider_dolar_pct / 100.0)
+            
+        return mult
+
+    df_estrat['Factor_Estrés_Fila'] = df_estrat.apply(evaluar_afectacion, axis=1)
+
+    años_quinquenio = ['FY27', 'FY28', 'FY29', 'FY30', 'FY31']
+    for a in años_quinquenio:
+        df_estrat[f'Final_{a}'] = df_estrat[f'Base_{a}'] * df_estrat['Factor_Estrés_Fila']
+
+    meses_cal = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    for m in meses_cal:
+        m_26 = pd.to_numeric(df_estrat.get(f'{m}-26', 0), errors='coerce').fillna(0)
+        df_estrat[f'peso_{m}'] = m_26 / (f26 + 1e-6)
+        
+    suma_pesos = df_estrat[[f'peso_{m}' for m in meses_cal]].sum(axis=1)
+    
+    for m in meses_cal:
+        peso_ajustado = np.where(suma_pesos > 0, df_estrat[f'peso_{m}'] / (suma_pesos + 1e-6), 1.0/12.0)
+        df_estrat[f'{m}-27'] = df_estrat['Final_FY27'] * peso_ajustado
+
+    cols_salida = cols_existentes + [f'{m}-27' for m in meses_cal] + [f'Final_{a}' for a in años_quinquenio]
+    df_final_proy = df_estrat[cols_salida].copy()
+
+    # --- TABLERO INTERACTIVO DE KPIs ---
+    tot_fy27_base = df_estrat['Base_FY27'].sum()
+    tot_fy27_estres = df_estrat['Final_FY27'].sum()
+    delta_usd = tot_fy27_estres - tot_fy27_base
+    pct_var = (delta_usd / tot_fy27_base * 100) if tot_fy27_base != 0 else 0
+
+    st.markdown("### Resumen de KPIs (Año 2027)")
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Proyección Base FY27", f"${tot_fy27_base:,.0f}")
+    col2.metric("Proyección Estresada FY27", f"${tot_fy27_estres:,.0f}")
+    col3.metric("Impacto Neto Operativo", f"${delta_usd:,.0f}", f"{pct_var:+.2f}%", delta_color="inverse")
+    col4.metric("Escenario de Riesgo", escenario)
+
+    st.markdown("---")
+    
+    tab_est1, tab_est2, tab_est3 = st.tabs([
+        "📊 Gráficos de Proyección",
+        "🔍 Detalle de Filas Afectadas",
+        "💾 Generar Excel Dinámico"
+    ])
+
+    with tab_est1:
+        df_melt = df_final_proy[['Classif'] + [f'Final_{a}' for a in años_quinquenio]].melt(id_vars=['Classif'], var_name='Año', value_name='Monto')
+        df_melt['Año'] = df_melt['Año'].str.replace('Final_FY', '20')
+        df_g_anual = df_melt.groupby(['Año', 'Classif'])['Monto'].sum().reset_index()
+
+        fig_barras = px.bar(
+            df_g_anual, 
+            x="Año", y="Monto", color="Classif", 
+            title="Presupuesto Multianual Reconstruido y Estresado (USD Detallado)", 
+            color_discrete_sequence=px.colors.qualitative.Safe
+        )
+        # Forzar formato detallado en el hover y eje Y sin redondear a millones
+        fig_barras.update_layout(yaxis_tickformat="$,.0f")
+        st.plotly_chart(fig_barras, use_container_width=True)
+
+    with tab_est2:
+        st.markdown("**Inspector Semántico:** Revisa qué celdas detectó el algoritmo basándose en las descripciones y la clasificación de mano de obra.")
+        df_verif = df_estrat[cols_existentes + ['Factor_Estrés_Fila', 'Base_FY27', 'Final_FY27']].copy()
+        df_verif = df_verif[df_verif['Factor_Estrés_Fila'] != 1.0]
+        
+        st.dataframe(
+            df_verif.head(200), 
+            use_container_width=True,
+            column_config={
+                "Base_FY27": st.column_config.NumberColumn("Base Original FY27", format="$%.0f"),
+                "Final_FY27": st.column_config.NumberColumn("Estresado FY27", format="$%.0f"),
+                "Factor_Estrés_Fila": st.column_config.NumberColumn("Multiplicador", format="%.3f")
+            }
+        )
+
+    with tab_est3:
+        st.subheader("Motor de Reportes Excel (XlsxWriter)")
+        st.markdown("El sistema genera un archivo Excel que incluye la tabla de datos, el cuadro paramétrico de sensibilidades separado a la derecha y un gráfico interactivo nativo de Excel con el resumen quinquenal.")
+        
+        from io import BytesIO
+        output_excel = BytesIO()
+        
+        # Usamos XlsxWriter para incrustar el panel de parámetros y el gráfico
+        with pd.ExcelWriter(output_excel, engine="xlsxwriter") as writer:
+            df_final_proy.to_excel(writer, sheet_name="Proyeccion_Estrategica", index=False)
+            
+            workbook = writer.book
+            worksheet = writer.sheets["Proyeccion_Estrategica"]
+            
+            # Formatos de Excel
+            money_fmt = workbook.add_format({'num_format': '$#,##0'})
+            bold_fmt = workbook.add_format({'bold': True})
+            header_fmt = workbook.add_format({'bold': True, 'bg_color': '#D9E1F2', 'border': 1})
+            
+            # Aplicar formato de moneda a los datos exportados
+            for col_num in range(5, len(df_final_proy.columns)):
+                worksheet.set_column(col_num, col_num, 15, money_fmt)
+            
+            # --- TABLA DE PARÁMETROS SEPARADA A LA DERECHA ---
+            start_col = len(df_final_proy.columns) + 2
+            
+            worksheet.write(1, start_col, "Tabla de Sensibilidad", header_fmt)
+            worksheet.write(1, start_col+1, "Valor Aplicado", header_fmt)
+            
+            worksheet.write(2, start_col, "Variación Combustible", bold_fmt)
+            worksheet.write(2, start_col+1, f"{slider_fuel_pct}%")
+            
+            worksheet.write(3, start_col, "Variación Energía", bold_fmt)
+            worksheet.write(3, start_col+1, f"{slider_power_pct}%")
+            
+            worksheet.write(4, start_col, "Variación Dólar", bold_fmt)
+            worksheet.write(4, start_col+1, f"{slider_dolar_pct}%")
+            
+            worksheet.write(5, start_col, "Variación Mano de Obra", bold_fmt)
+            worksheet.write(5, start_col+1, f"{slider_labor_pct}%")
+
+            # --- TABLA RESUMEN PARA EL GRÁFICO NATIVO DE EXCEL ---
+            worksheet.write(8, start_col, "Año", header_fmt)
+            worksheet.write(8, start_col+1, "Gasto Total (USD)", header_fmt)
+            
+            totals = [df_final_proy[f'Final_{a}'].sum() for a in años_quinquenio]
+            
+            for i, (año, tot) in enumerate(zip(['2027', '2028', '2029', '2030', '2031'], totals)):
+                worksheet.write(9+i, start_col, año)
+                worksheet.write(9+i, start_col+1, tot, money_fmt)
+
+            # --- CREACIÓN DEL GRÁFICO DENTRO DE EXCEL ---
+            chart = workbook.add_chart({'type': 'column'})
+            chart.add_series({
+                'name': 'Proyección Quinquenal',
+                'categories': ['Proyeccion_Estrategica', 9, start_col, 13, start_col],
+                'values':     ['Proyeccion_Estrategica', 9, start_col+1, 13, start_col+1],
+                'data_labels': {'value': True},
+                'fill':   {'color': '#4F81BD'}
+            })
+            chart.set_title({'name': 'Evolución del Presupuesto (2027-2031)'})
+            chart.set_x_axis({'name': 'Año Operativo'})
+            chart.set_y_axis({'name': 'Costo (USD)', 'num_format': '$#,##0'})
+            chart.set_size({'width': 550, 'height': 350})
+            
+            worksheet.insert_chart(16, start_col, chart)
+            
+        st.download_button(
+            label="Descargar Reporte Quinquenal (Incluye Gráficos y Variables en Excel)",
+            data=output_excel.getvalue(),
+            file_name="Planificacion_Estrategica_Visual.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True
+        )
