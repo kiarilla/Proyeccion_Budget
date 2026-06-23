@@ -788,12 +788,12 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
     slider_dolar_pct = st.sidebar.slider("Variación Tipo de Cambio / USD", -100.0, 100.0, val_dolar, step=0.1)
     slider_labor_pct = st.sidebar.slider("Variación Costo Mano de Obra", -100.0, 100.0, val_labor, step=0.1)
 
-    # NUEVO: Selectores interactivos para definir Año Base y Año Proyectado Objetivo en el Gráfico de Líneas
+    # Parámetros dinámicos para el gráfico temporal de líneas
     st.sidebar.markdown("---")
     st.sidebar.subheader("📅 Períodos del Gráfico Temporal")
     lista_anios_disponibles = ['2024', '2026', '2027', '2028', '2029', '2030', '2031']
-    anio_base_sel = st.sidebar.selectbox("Seleccione Año Base:", lista_anios_disponibles, index=1) # Default 2026
-    anio_proy_sel = st.sidebar.selectbox("Seleccione Año Proyectado Objetivo:", [a for a in lista_anios_disponibles if a != anio_base_sel], index=1) # Default 2027
+    anio_base_sel = st.sidebar.selectbox("Seleccione Año Base:", lista_anios_disponibles, index=1)
+    anio_proy_sel = st.sidebar.selectbox("Seleccione Año Proyectado Objetivo:", [a for a in lista_anios_disponibles if a != anio_base_sel], index=1)
 
     @st.cache_data
     def cargar_hojas_estratejicas(path):
@@ -855,10 +855,10 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
         
     suma_pesos = df_estrat[[f'peso_{m}' for m in meses_cal]].sum(axis=1)
     
-    # Generar distribuciones mensuales proyectadas para todos los años del quinquenio basándonos en la curva estacional base
     for m in meses_cal:
         peso_ajustado = np.where(suma_pesos > 0, df_estrat[f'peso_{m}'] / (suma_pesos + 1e-6), 1.0/12.0)
         df_estrat[f'{m}-24'] = df_estrat['FY24'] * peso_ajustado
+        df_estrat[f'{m}-26'] = f26 * peso_ajustado
         df_estrat[f'{m}-27'] = df_estrat['Final_FY27'] * peso_ajustado
         df_estrat[f'{m}-28'] = df_estrat['Final_FY28'] * peso_ajustado
         df_estrat[f'{m}-29'] = df_estrat['Final_FY29'] * peso_ajustado
@@ -876,8 +876,8 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
 
     st.markdown("### Resumen de KPIs (Año 2027)")
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric(f"Proyección Base FY27", f"${tot_fy27_base:,.0f}")
-    col2.metric(f"Proyección Simulada FY27", f"${tot_fy27_estres:,.0f}")
+    col1.metric("Proyección Base FY27", f"${tot_fy27_base:,.0f}")
+    col2.metric("Proyección Simulada FY27", f"${tot_fy27_estres:,.0f}")
     col3.metric("Impacto Neto Operativo", f"${delta_usd:,.0f}", f"{pct_var:+.2f}%", delta_color="inverse")
     col4.metric("Escenario de Riesgo", escenario)
 
@@ -890,6 +890,7 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
     ])
 
     with tab_est1:
+        # 1. Gráfico Original: Presupuesto Multianual por Clasificación
         df_melt = df_final_proy[['Classif'] + [f'Final_{a}' for a in años_quinquenio]].melt(id_vars=['Classif'], var_name='Año', value_name='Monto')
         df_melt['Año'] = df_melt['Año'].str.replace('Final_FY', '20')
         df_g_anual = df_melt.groupby(['Año', 'Classif'])['Monto'].sum().reset_index()
@@ -904,34 +905,56 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
         st.plotly_chart(fig_barras, use_container_width=True)
 
         # --------------------------------------------------------------------
-        # NUEVO GRÁFICO AGREGADO: LÍNEAS TEMPORALES MENSUALES (BASE VS PROYECTADO SIMULADO)
+        # NUEVO GRÁFICO: TOTALES GLOBALES POR AÑO (SIN CLASIFICACIÓN)
+        # --------------------------------------------------------------------
+        st.markdown("#### 📊 Presupuesto Total Consolidado Quinquenal")
+        st.markdown("Muestra el monto total global por cada año simulado, sensible a los parámetros del panel operativo.")
+
+        df_total_por_anio = df_g_anual.groupby('Año')['Monto'].sum().reset_index()
+
+        fig_totales_globales = px.bar(
+            df_total_por_anio,
+            x="Año",
+            y="Monto",
+            text="Monto",
+            title="Evolución del Costo Total Global Consolidado (2027-2031)",
+            color_discrete_sequence=["#2b2d42"]
+        )
+        fig_totales_globales.update_traces(texttemplate='$%{text:,.0f}', textposition='outside')
+        fig_totales_globales.update_layout(
+            xaxis_title="Año Operativo",
+            yaxis_title="Monto Neto General ($)",
+            yaxis_tickformat="$,.0f",
+            margin=dict(t=50, b=50),
+            height=450
+        )
+        st.plotly_chart(fig_totales_globales, use_container_width=True, key="grafico_barras_totales_globales")
+
+        # --------------------------------------------------------------------
+        # GRÁFICO: LÍNEAS TEMPORALES MENSUALES
         # --------------------------------------------------------------------
         st.markdown(f"#### 📈 Curva Mensual Temporal: Año Base {anio_base_sel} vs Año Proyectado (Simulado) {anio_proy_sel}")
-        st.markdown("Las líneas representan los montos agregados mensuales y se recalculan al mover los parámetros de sensibilidad.")
+        st.markdown("Las líneas representan los montos agregados mensuales y se recalculan dinámicamente al mover las sensibilidades.")
 
-        # Obtener sufijos de columnas según la selección ('24', '26', '27', etc.)
-        sufijo_base = anio_base_sel[-2:]
-        sufijo_proy = anio_proy_sel[-2:]
+        sufijo_base = str(anio_base_sel)[-2:]
+        sufijo_proy = str(anio_proy_sel)[-2:]
 
-        # Construir lista de columnas mensuales correspondientes
-        cols_meses_base = [f"{m}-{sufijo_base}" for m in meses_cal]
-        cols_meses_proy = [f"{m}-{sufijo_proy}" for m in meses_cal]
+        totales_mensuales_base = []
+        totales_mensuales_proy = []
 
-        # Calcular totales mensuales consolidados
-        totales_mensuales_base = [df_estrat[col].sum() for col in cols_meses_base]
-        totales_mensuales_proy = [df_estrat[col].sum() for col in cols_meses_proy]
+        for m in meses_cal:
+            col_b = f"{m}-{sufijo_base}"
+            col_p = f"{m}-{sufijo_proy}"
+            totales_mensuales_base.append(df_estrat[col_b].sum() if col_b in df_estrat.columns else 0.0)
+            totales_mensuales_proy.append(df_estrat[col_p].sum() if col_p in df_estrat.columns else 0.0)
 
-        # Estructurar Dataframe para el gráfico lineal
+        meses_largos = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
+
         df_lineas_trend = pd.DataFrame({
-            "Mes": meses_cal * 2,
+            "Mes": meses_largos * 2,
             "Monto": totales_mensuales_base + totales_mensuales_proy,
             "Año / Escenario": [f"Año Base ({anio_base_sel})"] * 12 + [f"Año Proyectado Simulado ({anio_proy_sel})"] * 12
         })
-
-        # Mapeo de nombres completos de meses para el Eje X interactivo
-        meses_largos = {"Jan": "Ene", "Feb": "Feb", "Mar": "Mar", "Apr": "Abr", "May": "May", "Jun": "Jun", 
-                        "Jul": "Jul", "Aug": "Ago", "Sep": "Sep", "Oct": "Oct", "Nov": "Nov", "Dec": "Dic"}
-        df_lineas_trend["Mes"] = df_lineas_trend["Mes"].map(meses_largos)
 
         fig_lineas = px.line(
             df_lineas_trend,
@@ -945,7 +968,6 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
                 f"Año Proyectado Simulado ({anio_proy_sel})": "#e63946" if delta_usd >= 0 else "#2a9d8f"
             }
         )
-
         fig_lineas.update_layout(
             xaxis_title="Meses del Período",
             yaxis_title="Monto Total General ($)",
@@ -954,7 +976,6 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
         )
         st.plotly_chart(fig_lineas, use_container_width=True, key="grafico_lineas_mensual_quinquenal")
-        # --------------------------------------------------------------------
 
     with tab_est2:
         st.markdown("**Inspector Semántico:** Revisa qué celdas detectó el algoritmo basándose en las descripciones y la clasificación de mano de obra.")
@@ -1039,4 +1060,3 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             use_container_width=True
         )
-        
