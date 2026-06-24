@@ -1064,7 +1064,7 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
 # =========================================================================
             # 1. CÁLCULO REAL DE LOS DELTAS FILTRADOS POR CATEGORÍA (CORREGIDO)
             # =========================================================================
-            
+            st.write("Categorías detectadas en tu Excel:", df_estrat['Classif'].dropna().unique())
             # --- DIÉSEL ---
             df_fuel = df_estrat[df_estrat['Classif'] == 'Fuel']
             gasto_base_fuel = df_fuel[f'Base_{sufijo_kpi_sim}'].sum() if not df_fuel.empty else 0
