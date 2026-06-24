@@ -1061,71 +1061,73 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
 
         with tab_est2:
             import plotly.graph_objects as go
-# =========================================================================
-            # 1. CÁLCULO REAL DE LOS DELTAS FILTRADOS POR CATEGORÍA (CORREGIDO)
+            import pandas as pd
+
+            st.header("📊 Puente de Variaciones Presupuestarias por Categoría")
+            st.caption("Desglose del impacto financiero real entre el escenario Base y el escenario Simulado por cada cuenta contable.")
+
             # =========================================================================
-            st.write("Categorías detectadas en tu Excel:", df_estrat['Classif'].dropna().unique())
-            # --- DIÉSEL ---
-            df_fuel = df_estrat[df_estrat['Classif'] == 'Fuel']
-            gasto_base_fuel = df_fuel[f'Base_{sufijo_kpi_sim}'].sum() if not df_fuel.empty else 0
-            impacto_diesel_usd = gasto_base_fuel * (slider_fuel_pct / 100.0)
-
-            # --- ENERGÍA ---
-            # Nota: Revisa si en tu Excel se llama 'Energy', 'Power' o 'Energía' y cámbialo aquí
-            df_energia = df_estrat[df_estrat['Classif'] == 'Power'] 
-            gasto_base_energia = df_energia[f'Base_{sufijo_kpi_sim}'].sum() if not df_energia.empty else 0
-            impacto_energia_usd = gasto_base_energia * (slider_power_pct / 100.0)
-
-            # --- DÓLAR (TIPO DE CAMBIO) ---
-            # El tipo de cambio suele afectar a los costos indexados en USD o a todo lo importado.
-            # Si afecta a una categoría específica, reemplaza 'FX_Indexed'. Si afecta a todo el 
-            # presupuesto por igual, puedes dejarlo con 'tot_kpi_base'.
-            impacto_dolar_usd = tot_kpi_base * (slider_dolar_pct / 100.0)
-
-            # --- MANO DE OBRA ---
-            # Nota: Revisa si en tu Excel se llama 'Labor', 'Mano de Obra' o 'Personnel'
-            df_labor = df_estrat[df_estrat['Classif'] == 'Labor'] 
-            gasto_base_labor = df_labor[f'Base_{sufijo_kpi_sim}'].sum() if not df_labor.empty else 0
-            impacto_labor_usd = gasto_base_labor * (slider_labor_pct / 100.0)
-
-           # =========================================================================
-            # 2. CONSTRUCCIÓN DEL GRÁFICO DE CASCADA (Plotly)
+            # 1. PROCESAMIENTO DE DATOS EN TIEMPO REAL (Idéntico al gráfico del profesor)
             # =========================================================================
-            fig_cascada = go.Figure(go.Waterfall(
-                name = "Puente Presupuestario",
+            col_base = f'Base_{sufijo_kpi_sim}'
+            col_final = f'Final_{sufijo_kpi_sim}'
+
+            # Agrupamos por la columna 'Classif' y sumamos los montos Base y Final
+            df_resumen = df_estrat.groupby('Classif')[[col_base, col_final]].sum().reset_index()
+
+            # Calculamos la variación neta (Diferencia) para cada categoría
+            df_resumen['Variacion'] = df_resumen[col_final] - df_resumen[col_base]
+
+            # Ordenamos para que el gráfico sea legible (opcional)
+            df_resumen = df_resumen.sort_values(by='Variacion', ascending=False)
+
+            # Preparar las listas para el gráfico de cascada
+            categorias = [f"Budget {kpi_base_year}"] + df_resumen['Classif'].tolist() + [f"Budget {kpi_sim_year}"]
+            valores = [tot_kpi_base] + df_resumen['Variacion'].tolist() + [tot_kpi_simulado]
+            
+            # Definir la medida para Plotly ("absolute" para los pilares, "relative" para los escalones)
+            medidas = ["absolute"] + ["relative"] * len(df_resumen) + ["total"]
+
+            # Formatear el texto que va arriba de cada barra (en millones para que no sature)
+            texto_barras = [f"${tot_kpi_base/1e6:,.1f}M"]
+            for v in df_resumen['Variacion']:
+                if v >= 0:
+                    texto_barras.append(f"+${v/1e6:,.1f}M")
+                else:
+                    texto_barras.append(f"-${abs(v)/1e6:,.1f}M")
+            texto_barras.append(f"${tot_kpi_simulado/1e6:,.1f}M")
+
+            # =========================================================================
+            # 2. CONSTRUCCIÓN DEL GRÁFICO DE CASCADA (Estilo solicitado por el profesor)
+            # =========================================================================
+            fig_profe = go.Figure(go.Waterfall(
+                name = "Puente",
                 orientation = "v",
-                measure = ["absolute", "relative", "relative", "relative", "relative", "total"],
-                x = ["Presupuesto Base", "Efecto Diésel", "Efecto Energía", "Efecto Dólar", "Mano de Obra", "Presupuesto Simulado"],
+                measure = medidas,
+                x = categorias,
+                y = valores,
+                text = texto_barras,
                 textposition = "outside",
-                text = [
-                    f"${tot_kpi_base:,.0f}", 
-                    f"+${impacto_diesel_usd:,.0f}" if impacto_diesel_usd >= 0 else f"-${abs(impacto_diesel_usd):,.0f}",
-                    f"+${impacto_energia_usd:,.0f}" if impacto_energia_usd >= 0 else f"-${abs(impacto_energia_usd):,.0f}",
-                    f"+${impacto_dolar_usd:,.0f}" if impacto_dolar_usd >= 0 else f"-${abs(impacto_dolar_usd):,.0f}",
-                    f"+${impacto_labor_usd:,.0f}" if impacto_labor_usd >= 0 else f"-${abs(impacto_labor_usd):,.0f}",
-                    f"${tot_kpi_simulado:,.0f}"
-                ],
-                # Pasamos las nuevas variables corregidas a la coordenada Y
-                y = [tot_kpi_base, impacto_diesel_usd, impacto_energia_usd, impacto_dolar_usd, impacto_labor_usd, tot_kpi_simulado],
                 connector = {"line":{"color":"rgb(63, 63, 63)", "width": 1, "dash": "dot"}},
-                decreasing = {"marker":{"color":"#2a9d8f"}}, 
-                increasing = {"marker":{"color":"#e63946"}}, 
-                totals     = {"marker":{"color":"#1d3557"}}  
+                decreasing = {"marker":{"color":"#2a9d8f"}}, # Verde si la categoría bajó costos
+                increasing = {"marker":{"color":"#e63946"}}, # Rojo si la categoría subió costos
+                totals     = {"marker":{"color":"#1d3557"}}  # Azul para los totales inicial y final
             ))
 
-            fig_cascada.update_layout(
-                title = f"<b>Puente de Variaciones Presupuestarias ({kpi_base_year} vs {kpi_sim_year})</b>",
+            fig_profe.update_layout(
+                title = f"<b>Bridge: Budget {kpi_base_year} vs Budget {kpi_sim_year} (USD)</b>",
                 showlegend = False,
                 paper_bgcolor='rgba(0,0,0,0)',
                 plot_bgcolor='rgba(0,0,0,0)',
-                height=450,
-                margin=dict(t=50, b=20, l=20, r=20)
+                height=500,
+                margin=dict(t=80, b=40, l=40, r=40)
             )
-            
-            # Desplegar el gráfico corregido
-            st.plotly_chart(fig_cascada, use_container_width=True)
-            
-            st.write("---") # Separador visual
+
+            # Dibujamos el gráfico en Streamlit
+            st.plotly_chart(fig_profe, use_container_width=True)
+
+            st.write("---")
+
 
             # =========================================================================
             # 3. INSPECTOR SEMÁNTICO (Tu código original)
