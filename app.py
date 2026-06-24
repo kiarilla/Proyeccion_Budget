@@ -55,6 +55,7 @@ from src.viz import (
     MONTH_COLS,
     MONTH_NAMES,
 )
+from src.pdf_report import build_forecast_pdf
 
 # Configuración inicial de la página
 st.set_page_config(
@@ -714,7 +715,40 @@ if app_mode == "📊 Forecast Operacional (5+7)":
 
         st.subheader("Descargar Forecast 5+7")
 
-        col_x1, col_x2 = st.columns(2)
+        # Detalle mensual agregado (Real + Proyección vs Budget vs Oficial), respetando filtros
+        def _build_monthly_df() -> pd.DataFrame:
+            if forecast_lines_f.empty:
+                return pd.DataFrame()
+            forecast_monthly = forecast_lines_f[MONTH_COLS].sum().values
+            budget_monthly = np.zeros(12)
+            official_monthly = np.zeros(12)
+            dim_cols_merge = ["Resp", "Desc Resp", "VP", "Gerencia", "Proc",
+                              "Desc Proc", "Item", "Desc Item", "Classif", "CC"]
+            budget_for_merge = budget_df[dim_cols_merge + MONTH_COLS].rename(
+                columns={c: c + "_b" for c in MONTH_COLS}
+            )
+            forecast_for_merge = forecast_df[dim_cols_merge + MONTH_COLS].rename(
+                columns={c: c + "_o" for c in MONTH_COLS}
+            )
+            merged_m = forecast_lines_f[dim_cols_merge].merge(
+                budget_for_merge, on=dim_cols_merge, how="inner"
+            ).merge(forecast_for_merge, on=dim_cols_merge, how="inner")
+            if not merged_m.empty:
+                for i, col in enumerate(MONTH_COLS):
+                    budget_monthly[i] = merged_m[f"{col}_b"].sum()
+                    official_monthly[i] = merged_m[f"{col}_o"].sum()
+            df_m = pd.DataFrame({
+                "Mes": MONTH_NAMES,
+                "Real / Proyección": forecast_monthly,
+                "Budget Mensual": budget_monthly,
+                "Forecast Oficial": official_monthly,
+            })
+            df_m["Var vs Budget"] = df_m["Real / Proyección"] - df_m["Budget Mensual"]
+            return df_m
+
+        monthly_df = _build_monthly_df()
+
+        col_x1, col_x2, col_x3 = st.columns(3)
 
         with col_x1:
             csv = forecast_lines_f.to_csv(index=False)
@@ -739,6 +773,30 @@ if app_mode == "📊 Forecast Operacional (5+7)":
                 data=output.getvalue(),
                 file_name="forecast_5plus7.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True,
+            )
+
+        with col_x3:
+            pdf_buffer = build_forecast_pdf(
+                kpis=kpis_f,
+                metodo_ganador=metodo_ganador,
+                backtesting_df=resultados_backtesting,
+                agg_classif=agg_classif_f,
+                agg_vp=agg_vp,
+                agg_gerencia=agg_gerencia_f,
+                deviation_df=deviation_df_f,
+                monthly_df=monthly_df,
+                filtros={
+                    "VP": vp_seleccionada,
+                    "Classif": classif_seleccionada,
+                    "CLASS": class_seleccionada,
+                },
+            )
+            st.download_button(
+                label="📄 Descargar Informe PDF",
+                data=pdf_buffer,
+                file_name="informe_forecast_5plus7.pdf",
+                mime="application/pdf",
                 use_container_width=True,
             )
 
