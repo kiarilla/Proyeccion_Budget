@@ -812,16 +812,16 @@ if app_mode == "📊 Forecast Operacional (5+7)":
         st.subheader("Resultados de Backtesting")
         st.dataframe(resultados_backtesting, use_container_width=True, hide_index=True)
 
-Python
+
 # ============================================================================
 # ============================================================================
 # MÓDULO 2: PROYECCIÓN ESTRATÉGICA QUINQUENAL (2027-2031)
 # ============================================================================
 # ============================================================================
-
-        elif app_mode == "📈 Proyección Estratégica (2027-2031)":
+    elif app_mode == "📈 Proyección Estratégica (2027-2031)":
             st.title("📈 Tablero Interactivo de Proyección Estratégica y KPIs")
             st.markdown("Modelo de proyección basado en Pronóstico de Consenso Ponderado (2024-2031) con sensibilidad a variables operativas clave.")
+
     
             st.sidebar.subheader("🎬 Escenarios Preconfigurados")
         
