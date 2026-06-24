@@ -1006,6 +1006,53 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
                 )
                 st.plotly_chart(fig_tendencia, use_container_width=True, key="grafico_tendencia_anual")
 
+                # 1. Título fijo indicando que la proyección mapea exclusivamente el año 2027
+            st.markdown(f"#### 📈 Curva Mensual Temporal: Año Base {anio_base_sel} vs Año Proyectado (Simulado) 2027")
+            
+            # 2. Definición de sufijos: el de proyección se fuerza estáticamente a "27"
+            sufijo_base = str(anio_base_sel)[-2:]
+            sufijo_proy = "27"  # Forzado para el año 2027
+            
+            totales_mensuales_base = []
+            totales_mensuales_proy = []
+            
+            # 3. Construcción y suma de columnas indexadas en el DataFrame (ej: "Ene-27")
+            for m in meses_cal:
+                col_b = f"{m}-{sufijo_base}"
+                col_p = f"{m}-{sufijo_proy}"  # Esto buscará "Ene-27", "Feb-27", etc.
+                totales_mensuales_base.append(df_estrat[col_b].sum() if col_b in df_estrat.columns else 0.0)
+                totales_mensuales_proy.append(df_estrat[col_p].sum() if col_p in df_estrat.columns else 0.0)
+            
+            meses_largos = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
+            
+            # 4. Creación del DataFrame para el gráfico con etiquetas fijas para 2027
+            df_lineas_trend = pd.DataFrame({
+                "Mes": meses_largos * 2,
+                "Monto": totales_mensuales_base + totales_mensuales_proy,
+                "Año / Escenario": [f"Año Base ({anio_base_sel})"] * 12 + ["Año Proyectado Simulado (2027)"] * 12
+            })
+            
+            # 5. Configuración y renderizado del gráfico de Plotly
+            fig_lineas = px.line(
+                df_lineas_trend, x="Mes", y="Monto", color="Año / Escenario", markers=True,
+                title=f"Evolución de Costos Mensuales — Impacto del Escenario ({escenario})",
+                color_discrete_map={
+                    f"Año Base ({anio_base_sel})": "#457b9d",
+                    "Año Proyectado Simulado (2027)": "#e63946" if delta_kpi_usd >= 0 else "#2a9d8f"
+                }
+            )
+            
+            fig_lineas.update_layout(
+                xaxis_title="Meses del Período", 
+                yaxis_title="Monto Total General ($)",
+                yaxis_tickformat="$,.0f", 
+                hovermode="x unified",
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+            )
+            
+            # Nota: Se recomienda cambiar la 'key' si renderizas este gráfico en paralelo con otros para evitar duplicidades en Streamlit
+            st.plotly_chart(fig_lineas, use_container_width=True, key="grafico_lineas_mensual_2027")
+
         with tab_est2:
             st.markdown("**Inspector Semántico Activo:** Revisa qué filas específicas han sido modificadas por las elasticidades de tus sliders (filas cuyo factor multiplicador es distinto de 1.0).")
             df_verif = df_estrat[cols_existentes + ['Factor_Estrés_Fila', f'Base_{sufijo_kpi_sim}', f'Final_{sufijo_kpi_sim}']].copy()
