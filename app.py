@@ -938,7 +938,7 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
         
         tab_est1, tab_est2, tab_est3, tab_est4 = st.tabs([
             "📊 Gráficos de Proyección",
-            "🔍 Detalle de Filas Afectadas",
+            "🔍 Desglose de Desviaciones y Filas Afectadas",
             "💾 Generar Excel Dinámico",
             "📄 Exportar PDF Ejecutivo"
         ])
