@@ -761,536 +761,513 @@ if app_mode == "📊 Forecast Operacional (5+7)":
 # ============================================================================
 
 elif app_mode == "📈 Proyección Estratégica (2027-2031)":
-    st.title("📈 Tablero Interactivo de Proyección Estratégica y KPIs")
-    st.markdown("Modelo de proyección histórica corregida (Basado en el crecimiento orgánico 2024-2026 sin inflación) con sensibilidad a variables operativas clave.")
+        st.title("📈 Tablero Interactivo de Proyección Estratégica y KPIs")
+        st.markdown("Modelo de proyección basado en Pronóstico de Consenso Ponderado (2024-2031) con sensibilidad a variables operativas clave.")
 
-    st.sidebar.subheader("🎬 Escenarios Preconfigurados")
-    escenario = st.sidebar.selectbox("Seleccione un escenario estratégico:", [
-        "Manual / Personalizado",
-        "Crisis Global (+Combustible y Dólar)",
-        "Negociación Sindical (+Mano de Obra)",
-        "Eficiencia Operativa (-Costos Generales)"
-    ])
+        st.sidebar.subheader("🎬 Escenarios Preconfigurados")
+        escenario = st.sidebar.selectbox("Seleccione un escenario estratégico:", [
+            "Manual / Personalizado",
+            "Crisis Global (+Combustible y Dólar)",
+            "Negociación Sindical (+Mano de Obra)",
+            "Eficiencia Operativa (-Costos Generales)"
+        ])
 
-    val_fuel, val_power, val_dolar, val_labor = 0.0, 0.0, 0.0, 0.0
-    if escenario == "Crisis Global (+Combustible y Dólar)":
-        val_fuel, val_power, val_dolar, val_labor = 25.0, 10.0, 15.0, 5.0
-    elif escenario == "Negociación Sindical (+Mano de Obra)":
-        val_fuel, val_power, val_dolar, val_labor = 5.0, 2.0, 2.0, 18.0
-    elif escenario == "Eficiencia Operativa (-Costos Generales)":
-        val_fuel, val_power, val_dolar, val_labor = -10.0, -5.0, -8.0, -5.0
+        val_fuel, val_power, val_dolar, val_labor = 0.0, 0.0, 0.0, 0.0
+        if escenario == "Crisis Global (+Combustible y Dólar)":
+            val_fuel, val_power, val_dolar, val_labor = 25.0, 10.0, 20.0, 5.0
+        elif escenario == "Negociación Sindical (+Mano de Obra)":
+            val_fuel, val_power, val_dolar, val_labor = 5.0, 2.0, 0.0, 18.0
+        elif escenario == "Eficiencia Operativa (-Costos Generales)":
+            val_fuel, val_power, val_dolar, val_labor = -12.0, -5.0, -5.0, -6.0
 
-    st.sidebar.markdown("---")
-    st.sidebar.subheader("🎛️ Parámetros de Sensibilidad (%)")
-    slider_fuel_pct = st.sidebar.slider("Variación Precio Diésel / Combustible", -100.0, 100.0, val_fuel, step=0.1)
-    slider_power_pct = st.sidebar.slider("Variación Tarifa Energía Eléctrica", -100.0, 100.0, val_power, step=0.1)
-    slider_dolar_pct = st.sidebar.slider("Variación Tipo de Cambio / USD", -100.0, 100.0, val_dolar, step=0.1)
-    slider_labor_pct = st.sidebar.slider("Variación Costo Mano de Obra", -100.0, 100.0, val_labor, step=0.1)
+        st.sidebar.markdown("---")
+        st.sidebar.subheader("🎛️ Parámetros de Sensibilidad (%)")
+        slider_fuel_pct = st.sidebar.slider("Variación Precio Diésel / Combustible", -100.0, 100.0, val_fuel, step=0.1)
+        slider_power_pct = st.sidebar.slider("Variación Tarifa Energía Eléctrica", -100.0, 100.0, val_power, step=0.1)
+        slider_dolar_pct = st.sidebar.slider("Variación Tipo de Cambio / USD", -100.0, 100.0, val_dolar, step=0.1)
+        slider_labor_pct = st.sidebar.slider("Variación Costo Mano de Obra", -100.0, 100.0, val_labor, step=0.1)
 
-    # --- CORRECCIÓN DINÁMICA DE SELECTORES PARA EL GRÁFICO TEMPORAL ---
-    st.sidebar.markdown("---")
-    st.sidebar.subheader("📅 Períodos del Gráfico Temporal")
-    lista_anios_disponibles = ['2024', '2026', '2027', '2028', '2029', '2030', '2031']
-    
-    # El año base por defecto es 2026 (Índice 1)
-    anio_base_sel = st.sidebar.selectbox("Seleccione Año Base (Lateral):", lista_anios_disponibles, index=1)
-    
-    # Filtramos las opciones excluyendo el año base seleccionado
-    opciones_proyeccion = [a for a in lista_anios_disponibles if a != anio_base_sel]
-    
-    # Buscamos la posición del año '2027' en el subconjunto restante para evitar desfases o bloqueos
-    idx_defecto_proy = opciones_proyeccion.index('2027') if '2027' in opciones_proyeccion else 0
-    
-    anio_proy_sel = st.sidebar.selectbox(
-        "Seleccione Año Proyectado Objetivo (Lateral):", 
-        opciones_proyeccion, 
-        index=idx_defecto_proy
-    )
+        @st.cache_data
+        def cargar_hojas_estratejicas(path):
+            return pd.read_excel(path, sheet_name="BUDGET 2024 - 2028"), pd.read_excel(path, sheet_name="BUDGET 2025 - 2029"), pd.read_excel(path, sheet_name="BUDGET 2026 - 2030")
 
-    @st.cache_data
-    def cargar_hojas_estratejicas(path):
-        return pd.read_excel(path, sheet_name="BUDGET 2024 - 2028"), pd.read_excel(path, sheet_name="BUDGET 2025 - 2029"), pd.read_excel(path, sheet_name="BUDGET 2026 - 2030")
+        try:
+            b24, b25, b26 = cargar_hojas_estratejicas(file_path)
+        except Exception as e:
+            st.error(f"Error: Faltan pestañas históricas en el Excel subido. Detalle: {e}")
+            st.stop()
 
-    try:
-        b24, b25, b26 = cargar_hojas_estratejicas(file_path)
-    except Exception as e:
-        st.error(f"Error: Faltan pestañas históricas en el Excel subido. Detalle: {e}")
-        st.stop()
+        columnas_clave = ['CC', 'VP', 'Gerencia', 'Desc Item', 'Classif']
+        cols_existentes = [c for c in columnas_clave if c in b26.columns]
+        df_estrat = b26[cols_existentes].copy()
 
-    columnas_clave = ['CC', 'VP', 'Gerencia', 'Desc Item', 'Classif']
-    cols_existentes = [c for c in columnas_clave if c in b26.columns]
-    df_estrat = b26[cols_existentes].copy()
-
-    df_estrat = df_estrat.merge(b24[['CC', 'FY24']], on='CC', how='left')
-    df_estrat = df_estrat.merge(b26[['CC', 'FY26'] + [f'{m}-26' for m in ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']]], on='CC', how='left')
-    df_estrat.fillna(0, inplace=True)
-
-    # --- FILTROS DINÁMICOS DE ESTRUCTURA ORGANIZACIONAL ---
-    st.sidebar.markdown("---")
-    st.sidebar.subheader("🔍 Filtros de Estructura")
-    
-    lista_vps = sorted(df_estrat['VP'].dropna().unique().tolist()) if 'VP' in df_estrat.columns else []
-    selected_vps = st.sidebar.multiselect("Filtrar por VP:", lista_vps)
-
-    if selected_vps:
-        df_temp_ger = df_estrat[df_estrat['VP'].isin(selected_vps)]
-    else:
-        df_temp_ger = df_estrat
-    lista_gerencias = sorted(df_temp_ger['Gerencia'].dropna().unique().tolist()) if 'Gerencia' in df_temp_ger.columns else []
-    selected_gerencias = st.sidebar.multiselect("Filtrar por Gerencia:", lista_gerencias)
-
-    lista_classif = sorted(df_estrat['Classif'].dropna().unique().tolist()) if 'Classif' in df_estrat.columns else []
-    selected_classif = st.sidebar.multiselect("Filtrar por Clasificación:", lista_classif)
-
-    if selected_vps:
-        df_estrat = df_estrat[df_estrat['VP'].isin(selected_vps)]
-    if selected_gerencias:
-        df_estrat = df_estrat[df_estrat['Gerencia'].isin(selected_gerencias)]
-    if selected_classif:
-        df_estrat = df_estrat[df_estrat['Classif'].isin(selected_classif)]
-
-    f24 = pd.to_numeric(df_estrat['FY24'], errors='coerce').fillna(0)
-    f26 = pd.to_numeric(df_estrat['FY26'], errors='coerce').fillna(0)
-
-    # --- MÉTODO ÚNICO: Tendencia Limpia 2024 a 2026 sin Inflación ---
-    tasa_crecimiento = np.where(f24 > 0, (f26 / (f24 + 1e-6)) ** (1/2), 1.0).clip(0.95, 1.10)
-    
-    df_estrat['Base_FY24'] = f24
-    df_estrat['Base_FY26'] = f26
-    df_estrat['Base_FY27'] = f26 * tasa_crecimiento
-    df_estrat['Base_FY28'] = df_estrat['Base_FY27'] * tasa_crecimiento
-    df_estrat['Base_FY29'] = df_estrat['Base_FY28'] * tasa_crecimiento
-    df_estrat['Base_FY30'] = df_estrat['Base_FY29'] * tasa_crecimiento
-    df_estrat['Base_FY31'] = df_estrat['Base_FY30'] * tasa_crecimiento
-
-    # --- MAPEO SEMÁNTICO POR FILA ---
-    def evaluar_afectacion(fila):
-        item = str(fila.get('Desc Item', '')).lower()
-        classif = str(fila.get('Classif', '')).lower()
+        # --- 1. EXTRACCIÓN Y CRUCE MAESTRO CON SUFIJOS ---
+        meses_cal = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+        df_estrat = df_estrat.merge(b26[['CC'] + [f'{m}-26' for m in meses_cal]], on='CC', how='left')
         
-        mult = 1.0
-        if 'labor' in classif or any(p in item for p in ['remuneracion', 'sueldo', 'honorario', 'mano de obra', 'bono', 'dotacion']):
-            mult += (slider_labor_pct / 100.0)
-        if any(p in item for p in ['diesel', 'combustible', 'petroleo', 'gasoil']) and 'servicio' not in item:
-            mult += (slider_fuel_pct / 100.0)
-        if any(p in item for p in ['energia electrica', 'kwh', 'tarifa electrica']):
-            mult += (slider_power_pct / 100.0)
-        if any(p in item for p in ['foreign', 'usd', 'importado', 'licencia corporativa']):
-            mult += (slider_dolar_pct / 100.0)
-            
-        return mult
+        b24_fy = b24[['CC', 'FY24', 'FY25', 'FY26', 'FY27', 'FY28']].rename(columns=lambda x: f"{x}_b1" if x != 'CC' else x)
+        b25_fy = b25[['CC', 'FY25', 'FY26', 'FY27', 'FY28', 'FY29']].rename(columns=lambda x: f"{x}_b2" if x != 'CC' else x)
+        b26_fy = b26[['CC', 'FY26', 'FY30']].rename(columns=lambda x: f"{x}_b3" if x != 'CC' else x)
 
-    df_estrat['Factor_Estrés_Fila'] = df_estrat.apply(evaluar_afectacion, axis=1)
+        df_estrat = df_estrat.merge(b24_fy, on='CC', how='left')
+        df_estrat = df_estrat.merge(b25_fy, on='CC', how='left')
+        df_estrat = df_estrat.merge(b26_fy, on='CC', how='left')
+        df_estrat.fillna(0, inplace=True)
 
-    todos_los_anios = ['FY24', 'FY26', 'FY27', 'FY28', 'FY29', 'FY30', 'FY31']
-    años_quinquenio = ['FY27', 'FY28', 'FY29', 'FY30', 'FY31']
-    
-    for a in todos_los_anios:
-        df_estrat[f'Final_{a}'] = df_estrat[f'Base_{a}'] * df_estrat['Factor_Estrés_Fila']
-
-    meses_cal = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-    for m in meses_cal:
-        m_26 = pd.to_numeric(df_estrat.get(f'{m}-26', 0), errors='coerce').fillna(0)
-        df_estrat[f'peso_{m}'] = m_26 / (f26 + 1e-6)
+        # --- FILTROS DINÁMICOS DE ESTRUCTURA ORGANIZACIONAL ---
+        st.sidebar.markdown("---")
+        st.sidebar.subheader("🔍 Filtros de Estructura")
         
-    suma_pesos = df_estrat[[f'peso_{m}' for m in meses_cal]].sum(axis=1)
-    
-    for m in meses_cal:
-        peso_ajustado = np.where(suma_pesos > 0, df_estrat[f'peso_{m}'] / (suma_pesos + 1e-6), 1.0/12.0)
-        df_estrat[f'{m}-24'] = df_estrat['FY24'] * peso_ajustado
-        df_estrat[f'{m}-26'] = f26 * peso_ajustado
-        df_estrat[f'{m}-27'] = df_estrat['Final_FY27'] * peso_ajustado
-        df_estrat[f'{m}-28'] = df_estrat['Final_FY28'] * peso_ajustado
-        df_estrat[f'{m}-29'] = df_estrat['Final_FY29'] * peso_ajustado
-        df_estrat[f'{m}-30'] = df_estrat['Final_FY30'] * peso_ajustado
-        df_estrat[f'{m}-31'] = df_estrat['Final_FY31'] * peso_ajustado
+        lista_vps = sorted(df_estrat['VP'].dropna().unique().tolist()) if 'VP' in df_estrat.columns else []
+        selected_vps = st.sidebar.multiselect("Filtrar por VP:", lista_vps)
 
-    # CRÍTICO: Exclusión completa de los históricos (FY24, FY26) en la sábana descargable
-    cols_salida = cols_existentes + [f'Final_{a}' for a in años_quinquenio] + [f'{m}-27' for m in meses_cal]
-    df_final_proy = df_estrat[cols_salida].copy()
-
-    # --- CONFIGURACIÓN DINÁMICA DE LA SECCIÓN DE KPIs ---
-    st.markdown("### 🏆 Resumen de KPIs Personalizado")
-    
-    col_sel_1, col_sel_2 = st.columns(2)
-    with col_sel_1:
-        kpi_base_year = st.selectbox("Comparar Año Base:", ['2024', '2026', '2027', '2028', '2029', '2030', '2031'], index=2, key="kpi_base_select")
-    with col_sel_2:
-        kpi_sim_year = st.selectbox("Contra Año Simulado:", ['2024', '2026', '2027', '2028', '2029', '2030', '2031'], index=2, key="kpi_sim_select")
-
-    sufijo_kpi_base = f"FY{kpi_base_year[-2:]}"
-    sufijo_kpi_sim = f"FY{kpi_sim_year[-2:]}"
-
-    tot_kpi_base = df_estrat[f'Base_{sufijo_kpi_base}'].sum()
-    tot_kpi_simulado = df_estrat[f'Final_{sufijo_kpi_sim}'].sum()
-    delta_kpi_usd = tot_kpi_simulado - tot_kpi_base
-    pct_kpi_var = (delta_kpi_usd / tot_kpi_base * 100) if tot_kpi_base != 0 else 0
-
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric(f"Proyección Base ({kpi_base_year})", f"${tot_kpi_base:,.0f}")
-    col2.metric(f"Proyección Simulada ({kpi_sim_year})", f"${tot_kpi_simulado:,.0f}")
-    col3.metric("Impacto Neto Operativo", f"${delta_kpi_usd:,.0f}", f"{pct_kpi_var:+.2f}%", delta_color="inverse")
-    col4.metric("Escenario Activo", escenario)
-
-    st.markdown("---")
-    
-    tab_est1, tab_est2, tab_est3, tab_est4 = st.tabs([
-        "📊 Gráficos de Proyección",
-        "🔍 Detalle de Filas Afectadas",
-        "💾 Generar Excel Dinámico",
-        "📄 Exportar PDF Ejecutivo"
-    ])
-
-    with tab_est1:
-        if df_final_proy.empty:
-            st.warning("⚠️ No existen registros con la combinación de filtros seleccionada.")
+        if selected_vps:
+            df_temp_ger = df_estrat[df_estrat['VP'].isin(selected_vps)]
         else:
-            df_melt = df_final_proy[['Classif'] + [f'Final_{a}' for a in años_quinquenio]].melt(id_vars=['Classif'], var_name='Año', value_name='Monto')
-            df_melt['Año'] = df_melt['Año'].str.replace('Final_FY', '20')
-            df_g_anual = df_melt.groupby(['Año', 'Classif'])['Monto'].sum().reset_index()
+            df_temp_ger = df_estrat
+        lista_gerencias = sorted(df_temp_ger['Gerencia'].dropna().unique().tolist()) if 'Gerencia' in df_temp_ger.columns else []
+        selected_gerencias = st.sidebar.multiselect("Filtrar por Gerencia:", lista_gerencias)
 
-            fig_barras = px.bar(
-                df_g_anual, 
-                x="Año", y="Monto", color="Classif", 
-                title="Presupuesto Multianual Reconstruido y Simulado (USD Detallado)", 
-                color_discrete_sequence=px.colors.qualitative.Safe
-            )
-            fig_barras.update_layout(yaxis_tickformat="$,.0f")
-            st.plotly_chart(fig_barras, use_container_width=True)
+        lista_classif = sorted(df_estrat['Classif'].dropna().unique().tolist()) if 'Classif' in df_estrat.columns else []
+        selected_classif = st.sidebar.multiselect("Filtrar por Clasificación:", lista_classif)
 
-            st.markdown("#### 📊 Presupuesto Total Consolidado Quinquenal")
-            df_total_por_anio = df_g_anual.groupby('Año')['Monto'].sum().reset_index()
+        if selected_vps:
+            df_estrat = df_estrat[df_estrat['VP'].isin(selected_vps)]
+        if selected_gerencias:
+            df_estrat = df_estrat[df_estrat['Gerencia'].isin(selected_gerencias)]
+        if selected_classif:
+            df_estrat = df_estrat[df_estrat['Classif'].isin(selected_classif)]
 
-            fig_totales_globales = px.bar(
-                df_total_por_anio,
-                x="Año", y="Monto", color="Año", text="Monto",
-                title="Evolución del Costo Total Global Consolidado (2027-2031)",
-                color_discrete_sequence=px.colors.qualitative.Dark24
-            )
-            fig_totales_globales.update_traces(texttemplate='$%{text:,.0f}', textposition='outside')
-            fig_totales_globales.update_layout(
-                xaxis_title="Año Operativo", yaxis_title="Monto Neto General ($)",
-                yaxis_tickformat="$,.0f", margin=dict(t=50, b=50), height=450, showlegend=False
-            )
-            st.plotly_chart(fig_totales_globales, use_container_width=True, key="grafico_barras_totales_globales")
+        # --- 2. PRONÓSTICO DE CONSENSO PONDERADO ---
+        df_estrat['Base_FY24'] = df_estrat['FY24_b1']
+        df_estrat['Base_FY25'] = (df_estrat['FY25_b1'] * 0.30) + (df_estrat['FY25_b2'] * 0.70)
+        df_estrat['Base_FY26'] = (df_estrat['FY26_b1'] * 0.10) + (df_estrat['FY26_b2'] * 0.30) + (df_estrat['FY26_b3'] * 0.60)
+        df_estrat['Base_FY27'] = (df_estrat['FY27_b1'] * 0.30) + (df_estrat['FY27_b2'] * 0.70)
+        df_estrat['Base_FY28'] = (df_estrat['FY28_b1'] * 0.30) + (df_estrat['FY28_b2'] * 0.70)
+        df_estrat['Base_FY29'] = df_estrat['FY29_b2']
+        df_estrat['Base_FY30'] = df_estrat['FY30_b3']
 
-            st.markdown(f"#### 📈 Curva Mensual Temporal: Año Base {anio_base_sel} vs Año Proyectado (Simulado) {anio_proy_sel}")
-            sufijo_base = str(anio_base_sel)[-2:]
-            sufijo_proy = str(anio_proy_sel)[-2:]
-
-            totales_mensuales_base = []
-            totales_mensuales_proy = []
-
-            for m in meses_cal:
-                col_b = f"{m}-{sufijo_base}"
-                col_p = f"{m}-{sufijo_proy}"
-                totales_mensuales_base.append(df_estrat[col_b].sum() if col_b in df_estrat.columns else 0.0)
-                totales_mensuales_proy.append(df_estrat[col_p].sum() if col_p in df_estrat.columns else 0.0)
-
-            meses_largos = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
-
-            df_lineas_trend = pd.DataFrame({
-                "Mes": meses_largos * 2,
-                "Monto": totales_mensuales_base + totales_mensuales_proy,
-                "Año / Escenario": [f"Año Base ({anio_base_sel})"] * 12 + [f"Año Proyectado Simulado ({anio_proy_sel})"] * 12
-            })
-
-            fig_lineas = px.line(
-                df_lineas_trend, x="Mes", y="Monto", color="Año / Escenario", markers=True,
-                title=f"Evolución de Costos Mensuales — Impacto del Escenario ({escenario})",
-                color_discrete_map={
-                    f"Año Base ({anio_base_sel})": "#457b9d",
-                    f"Año Proyectado Simulado ({anio_proy_sel})": "#e63946" if delta_kpi_usd >= 0 else "#2a9d8f"
-                }
-            )
-            fig_lineas.update_layout(
-                xaxis_title="Meses del Período", yaxis_title="Monto Total General ($)",
-                yaxis_tickformat="$,.0f", hovermode="x unified",
-                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
-            )
-            st.plotly_chart(fig_lineas, use_container_width=True, key="grafico_lineas_mensual_quinquenal")
-
-    with tab_est2:
-        st.markdown("**Inspector Semántico:** Revisa qué celdas detectó el algoritmo basándose en las descripciones y la clasificación de mano de obra.")
-        df_verif = df_estrat[cols_existentes + ['Factor_Estrés_Fila', 'Base_FY27', 'Final_FY27']].copy()
-        df_verif = df_verif[df_verif['Factor_Estrés_Fila'] != 1.0]
-        st.dataframe(df_verif.head(200), use_container_width=True)
-
-    # ------------------------------------------------------------------------
-    # PESTAÑA: MOTOR DE REPORTES EXCEL CON RESUMEN, GRÁFICO Y PARÁMETROS
-    # ------------------------------------------------------------------------
-    with tab_est3:
-        st.subheader("💾 Motor de Reportes Excel con Gráficos Integrados")
-        st.markdown("Genera una sábana analítica estructurada junto con un cuadro dinámico resumen, las variables de sensibilidad aplicadas y un gráfico nativo.")
+        tasa_historica_cons = np.where(df_estrat['Base_FY24'] > 0, 
+                                      (df_estrat['Base_FY30'] / (df_estrat['Base_FY24'] + 1e-6)) ** (1/6), 
+                                      1.0).clip(0.95, 1.10)
         
-        from io import BytesIO
-        output_excel = BytesIO()
+        df_estrat['Base_FY31'] = df_estrat['Base_FY30'] * tasa_historica_cons
+        f26 = df_estrat['Base_FY26']
+        df_estrat['FY24'] = df_estrat['Base_FY24']
+
+        # --- 3. MOTOR SEMÁNTICO ENRIQUECIDO (CON TU LISTA COMPLETA) ---
+        def evaluar_afectacion(fila):
+            item = str(fila.get('Desc Item', '')).lower()
+            classif = str(fila.get('Classif', '')).lower()
+            texto_eval = item + " " + classif
+            
+            mult = 1.0
+            
+            # A) MOTOR MANO DE OBRA (REFORZADO)
+            kw_labor = ['labor', 'remuneracion', 'sueldo', 'honorario', 'mano de obra', 'bono', 'dotacion', 
+                        'operadores', 'supervision', 'mantenedores', 'docente', 'trainee', 'aprendices', 'desarrollo carrera']
+            if any(p in texto_eval for p in kw_labor):
+                mult += (slider_labor_pct / 100.0)
+                
+            # B) MOTOR COMBUSTIBLE (AUMENTADO)
+            kw_fuel = ['diesel', 'combustible', 'petroleo', 'gasoil', 'gas licuado', 'lubricantes']
+            if any(p in texto_eval for p in kw_fuel) and 'servicio' not in texto_eval:
+                mult += (slider_fuel_pct / 100.0)
+                
+            # C) MOTOR ENERGÍA ELÉCTRICA
+            kw_power = ['energia electrica', 'kwh', 'tarifa electrica']
+            if any(p in texto_eval for p in kw_power):
+                mult += (slider_power_pct / 100.0)
+                
+            # D) MOTOR DÓLAR / TIPO DE CAMBIO
+            mult += (slider_dolar_pct / 100.0)
+                
+            return mult
+
+        df_estrat['Factor_Estrés_Fila'] = df_estrat.apply(evaluar_afectacion, axis=1)
+
+        todos_los_anios = ['FY24', 'FY25', 'FY26', 'FY27', 'FY28', 'FY29', 'FY30', 'FY31']
+        años_quinquenio = ['FY27', 'FY28', 'FY29', 'FY30', 'FY31']
         
-        with pd.ExcelWriter(output_excel, engine="xlsxwriter") as writer:
-            df_final_proy.to_excel(writer, sheet_name="Proyeccion_Estrategica", index=False)
-            
-            workbook  = writer.book
-            worksheet = writer.sheets["Proyeccion_Estrategica"]
-            
-            # Formatos de Celda Estructurados
-            header_fmt = workbook.add_format({
-                'bold': True, 'text_wrap': True, 'fg_color': '#1d3557', 
-                'font_color': 'white', 'border': 1, 'align': 'center', 'valign': 'vcenter'
-            })
-            param_header_fmt = workbook.add_format({
-                'bold': True, 'text_wrap': True, 'fg_color': '#e63946', 
-                'font_color': 'white', 'border': 1, 'align': 'center', 'valign': 'vcenter'
-            })
-            money_fmt  = workbook.add_format({'num_format': '$#,##0', 'border': 1})
-            pct_fmt    = workbook.add_format({'num_format': '+0.0%;-0.0%;0.0%', 'border': 1, 'align': 'center'})
-            text_fmt   = workbook.add_format({'border': 1})
-            
-            # Autoajuste dinámico del ancho de columnas principales
-            for col_num, col_name in enumerate(df_final_proy.columns):
-                max_len = max(df_final_proy[col_name].astype(str).map(len).max(), len(col_name)) + 3
-                worksheet.set_column(col_num, col_num, min(max_len, 30))
-                
-            # Columna de inicio para los paneles laterales derechos en Excel
-            start_col = len(df_final_proy.columns) + 2
-            worksheet.set_column(start_col, start_col+1, 28) # Espacio visual óptimo
-            
-            # --- TABLA 1: RESUMEN PARA EL GRÁFICO NATIVO DE EXCEL ---
-            worksheet.write(8, start_col, "Año", header_fmt)
-            worksheet.write(8, start_col+1, "Gasto Total (USD)", header_fmt)
-            
-            totals = [df_final_proy[f'Final_{a}'].sum() for a in años_quinquenio]
-            
-            for i, (año, tot) in enumerate(zip(['2027', '2028', '2029', '2030', '2031'], totals)):
-                worksheet.write(9+i, start_col, año, text_fmt)
-                worksheet.write(9+i, start_col+1, tot, money_fmt)
+        for a in todos_los_anios:
+            df_estrat[f'Final_{a}'] = df_estrat[f'Base_{a}'] * df_estrat['Factor_Estrés_Fila']
 
-            # --- TABLA 2: PARÁMETROS DE SENSIBILIDAD UTILIZADOS ---
-            worksheet.write(16, start_col, "Variable de Sensibilidad", param_header_fmt)
-            worksheet.write(16, start_col+1, "Porcentaje de Variación", param_header_fmt)
+        for m in meses_cal:
+            m_26 = pd.to_numeric(df_estrat.get(f'{m}-26', 0), errors='coerce').fillna(0)
+            df_estrat[f'peso_{m}'] = m_26 / (f26 + 1e-6)
             
-            parametros_guardados = [
-                ("Precio Diésel / Combustible", slider_fuel_pct / 100.0),
-                ("Tarifa Energía Eléctrica", slider_power_pct / 100.0),
-                ("Tipo de Cambio / USD", slider_dolar_pct / 100.0),
-                ("Costo Mano de Obra", slider_labor_pct / 100.0)
-            ]
-            
-            for i, (var_name, var_val) in enumerate(parametros_guardados):
-                worksheet.write(17+i, start_col, var_name, text_fmt)
-                worksheet.write(17+i, start_col+1, var_val, pct_fmt)
-                
-            worksheet.write(22, start_col, f"Escenario Maestro Activo: {escenario}", workbook.add_format({'bold': True, 'italic': True}))
-
-            # --- CREACIÓN DEL GRÁFICO DENTRO DE EXCEL ---
-            chart = workbook.add_chart({'type': 'column'})
-            chart.add_series({
-                'name': 'Proyección Quinquenal',
-                'categories': ['Proyeccion_Estrategica', 9, start_col, 13, start_col],
-                'values':     ['Proyeccion_Estrategica', 9, start_col+1, 13, start_col+1],
-                'data_labels': {'value': True},
-                'fill':   {'color': '#4F81BD'}
-            })
-            chart.set_title({'name': f'Evolución del Presupuesto ({escenario})'})
-            chart.set_x_axis({'name': 'Año Operativo'})
-            chart.set_y_axis({'name': 'Costo (USD)', 'num_format': '$#,##0'})
-            chart.set_size({'width': 550, 'height': 350})
-            
-            # Insertar el gráfico abajo (fila 25) para que no oculte las tablas analíticas anteriores
-            worksheet.insert_chart(25, start_col, chart)
-            
-        st.download_button(
-            label="Descargar Reporte Quinquenal (Incluye Gráficos y Variables en Excel)",
-            data=output_excel.getvalue(),
-            file_name="Planificacion_Estrategica_Visual.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            use_container_width=True
-        )
-
-    # ------------------------------------------------------------------------
-    # PESTAÑA: MOTOR DE REPORTE EJECUTIVO PDF - TOTALMENTE EN SINCRONÍA
-    # ------------------------------------------------------------------------
-    with tab_est4:
-        st.subheader("📄 Generador de Reporte PDF Corporativo en Tiempo Real")
-        st.markdown("Genera un documento formal listo para comités ejecutivos que captura las sensibilidades aplicadas y detalla explícitamente los alcances reales evaluados.")
+        suma_pesos = df_estrat[[f'peso_{m}' for m in meses_cal]].sum(axis=1)
         
-        from reportlab.lib.pagesizes import letter
-        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
-        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-        from reportlab.lib import colors
-        from io import BytesIO
-        from datetime import datetime
-        import zoneinfo
+        for m in meses_cal:
+            peso_ajustado = np.where(suma_pesos > 0, df_estrat[f'peso_{m}'] / (suma_pesos + 1e-6), 1.0/12.0)
+            df_estrat[f'{m}-24'] = df_estrat['FY24'] * peso_ajustado
+            df_estrat[f'{m}-26'] = f26 * peso_ajustado
+            df_estrat[f'{m}-27'] = df_estrat['Final_FY27'] * peso_ajustado
+            df_estrat[f'{m}-28'] = df_estrat['Final_FY28'] * peso_ajustado
+            df_estrat[f'{m}-29'] = df_estrat['Final_FY29'] * peso_ajustado
+            df_estrat[f'{m}-30'] = df_estrat['Final_FY30'] * peso_ajustado
+            df_estrat[f'{m}-31'] = df_estrat['Final_FY31'] * peso_ajustado
 
-        def generar_pdf_ejecutivo():
-            buffer = BytesIO()
-            doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
-            story = []
-            
-            styles = getSampleStyleSheet()
-            
-            titulo_style = ParagraphStyle(
-                'PortadaTitulo', parent=styles['Normal'],
-                fontName='Helvetica-Bold', fontSize=24, leading=30,
-                textColor=colors.HexColor('#1d3557'), alignment=1, spaceAfter=15
-            )
-            sub_style = ParagraphStyle(
-                'PortadaSub', parent=styles['Normal'],
-                fontName='Helvetica', fontSize=14, leading=18,
-                textColor=colors.HexColor('#457b9d'), alignment=1, spaceAfter=40
-            )
-            h1_style = ParagraphStyle(
-                'H1Corp', parent=styles['Heading1'],
-                fontName='Helvetica-Bold', fontSize=16, leading=20,
-                textColor=colors.HexColor('#1d3557'), spaceBefore=15, spaceAfter=10
-            )
-            body_style = ParagraphStyle(
-                'BodyCorp', parent=styles['Normal'],
-                fontName='Helvetica', fontSize=10, leading=14,
-                textColor=colors.HexColor('#2b2d42'), spaceAfter=8
-            )
-            bold_body = ParagraphStyle(
-                'BoldCorp', parent=body_style, fontName='Helvetica-Bold'
-            )
-            
-            # Captura de fecha forzando huso horario de Chile
-            try:
-                tz_chile = zoneinfo.ZoneInfo("America/Santiago")
-                ahora_chile = datetime.now(tz_chile)
-            except Exception:
-                ahora_chile = datetime.now()
-                
-            fecha_viva = ahora_chile.strftime("%d/%m/%Y")
-            
-            if not df_final_proy.empty and 'Classif' in df_final_proy.columns:
-                classif_reales = sorted(df_final_proy['Classif'].dropna().unique().tolist())
-                classif_txt = ", ".join(classif_reales) if classif_reales else "[Sin clasificaciones representadas]"
+        cols_salida = cols_existentes + [f'Final_{a}' for a in años_quinquenio] + [f'{m}-27' for m in meses_cal]
+        df_final_proy = df_estrat[cols_salida].copy()
+
+        # --- CONFIGURACIÓN DINÁMICA DE LA SECCIÓN DE KPIs ---
+        st.markdown("### 🏆 Resumen de KPIs Personalizado")
+        
+        col_sel_1, col_sel_2 = st.columns(2)
+        with col_sel_1:
+            kpi_base_year = st.selectbox("Comparar Año Base:", ['2024', '2025', '2026', '2027', '2028', '2029', '2030', '2031'], index=2, key="kpi_base_select")
+        with col_sel_2:
+            kpi_sim_year = st.selectbox("Contra Año Simulado:", ['2024', '2025', '2026', '2027', '2028', '2029', '2030', '2031'], index=3, key="kpi_sim_select")
+
+        sufijo_kpi_base = f"FY{kpi_base_year[-2:]}"
+        sufijo_kpi_sim = f"FY{kpi_sim_year[-2:]}"
+
+        tot_kpi_base = df_estrat[f'Base_{sufijo_kpi_base}'].sum()
+        tot_kpi_simulado = df_estrat[f'Final_{sufijo_kpi_sim}'].sum()
+        delta_kpi_usd = tot_kpi_simulado - tot_kpi_base
+        pct_kpi_var = (delta_kpi_usd / tot_kpi_base * 100) if tot_kpi_base != 0 else 0
+
+        col1, col2, col3, col4 = st.columns(4)
+        col1.metric(f"Proyección Base ({kpi_base_year})", f"${tot_kpi_base:,.0f}")
+        col2.metric(f"Proyección Simulada ({kpi_sim_year})", f"${tot_kpi_simulado:,.0f}")
+        col3.metric("Impacto Neto Operativo", f"${delta_kpi_usd:,.0f}", f"{pct_kpi_var:+.2f}%", delta_color="inverse")
+        col4.metric("Escenario Activo", escenario)
+
+        st.markdown("---")
+        
+        tab_est1, tab_est2, tab_est3, tab_est4 = st.tabs([
+            "📊 Gráficos de Proyección",
+            "🔍 Detalle de Filas Afectadas",
+            "💾 Generar Excel Dinámico",
+            "📄 Exportar PDF Ejecutivo"
+        ])
+
+        with tab_est1:
+            if df_final_proy.empty:
+                st.warning("⚠️ No existen registros con la combinación de filtros seleccionada.")
             else:
-                classif_txt = "[Sin datos disponibles debido a los filtros]"
+                df_melt = df_final_proy[['Classif'] + [f'Final_{a}' for a in años_quinquenio]].melt(id_vars=['Classif'], var_name='Año', value_name='Monto')
+                df_melt['Año'] = df_melt['Año'].str.replace('Final_FY', '20')
+                df_g_anual = df_melt.groupby(['Año', 'Classif'])['Monto'].sum().reset_index()
 
-            vps_txt = ", ".join(selected_vps) if selected_vps else "[Todas las VPs Consolidadas]"
-            gerencias_txt = ", ".join(selected_gerencias) if selected_gerencias else "[Todas las Gerencias Consolidadas]"
+                fig_barras = px.bar(
+                    df_g_anual, 
+                    x="Año", y="Monto", color="Classif", 
+                    title="Presupuesto Multianual Reconstruido y Simulado (USD Detallado)", 
+                    color_discrete_sequence=px.colors.qualitative.Safe
+                )
+                fig_barras.update_layout(yaxis_tickformat="$,.0f")
+                st.plotly_chart(fig_barras, use_container_width=True)
 
-            # --- PÁGINA 1: PORTADA INSTITUCIONAL ---
-            story.append(Spacer(1, 80))
-            story.append(Paragraph("INFORME DE PLANIFICACIÓN ESTRATÉGICA Y SENSIBILIDAD QUINQUENAL", titulo_style))
-            story.append(Paragraph("Análisis de Riesgo Operativo y Proyección de Costos (2027 - 2031)", sub_style))
-            story.append(Spacer(1, 100))
-            
-            info_data = [
-                [Paragraph("<b>Preparado Para:</b>", body_style), Paragraph("Comité de Finanzas y Operaciones", body_style)],
-                [Paragraph("<b>Fecha de Emisión (Chile):</b>", body_style), Paragraph(fecha_viva, body_style)],
-                [Paragraph("<b>Escenario Aplicado:</b>", body_style), Paragraph(f"{escenario}", bold_body)]
-            ]
-            t_info = Table(info_data, colWidths=[140, 360])
-            t_info.setStyle(TableStyle([('VALIGN', (0,0), (-1,-1), 'TOP'), ('BOTTOMPADDING', (0,0), (-1,-1), 4)]))
-            story.append(t_info)
-            story.append(PageBreak())
+                st.markdown("#### 📊 Presupuesto Total Consolidado Quinquenal")
+                df_total_por_anio = df_g_anual.groupby('Año')['Monto'].sum().reset_index()
 
-            # --- PÁGINA 2: RESUMEN EJECUTIVO Y ALCANCE REAL ---
-            story.append(Paragraph("1. Resumen Ejecutivo", h1_style))
-            story.append(Paragraph(
-                f"Este reporte formal documenta las proyecciones financieras y simulaciones de estrés "
-                f"bajo el escenario estratégico corporativo de <b>'{escenario}'</b>. Los cálculos incorporan "
-                f"los multiplicadores automáticos definidos en base a indexadores operativos clave.", body_style
-            ))
-            
-            story.append(Spacer(1, 5))
-            story.append(Paragraph("2. Alcance y Categorías Evaluadas en este Informe", h1_style))
-            story.append(Paragraph("Los datos consolidados corresponden estrictamente a las líneas presupuestarias con representation e impacto real según los filtros seleccionados:", body_style))
-            
-            alcance_data = [
-                [Paragraph("<b>Vicepresidencias (VPs):</b>", body_style), Paragraph(vps_txt, body_style)],
-                [Paragraph("<b>Gerencias Afectadas:</b>", body_style), Paragraph(gerencias_txt, body_style)],
-                [Paragraph("<b>Clasificaciones / Cuentas Reales:</b>", body_style), Paragraph(classif_txt, body_style)]
-            ]
-            t_alcance = Table(alcance_data, colWidths=[140, 360])
-            t_alcance.setStyle(TableStyle([
-                ('VALIGN', (0,0), (-1,-1), 'TOP'),
-                ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#f8f9fa')),
-                ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#e9ecef')),
-                ('TOPPADDING', (0,0), (-1,-1), 6),
-                ('BOTTOMPADDING', (0,0), (-1,-1), 6)
-            ]))
-            story.append(t_alcance)
-            
-            story.append(Spacer(1, 15))
-            story.append(Paragraph(f"3. Métricas Clave de Impacto Seleccionadas ({kpi_base_year} vs {kpi_sim_year})", h1_style))
-            
-            kpi_data = [
-                [f"Métrica Financiera", "Monto Valorizado (USD)"],
-                [f"Proyección Financiera Base ({kpi_base_year})", f"$ {tot_kpi_base:,.0f}"],
-                [f"Proyección con Sensibilidad ({kpi_sim_year})", f"$ {tot_kpi_simulado:,.0f}"],
-                ["Impacto Neto Neto en Margen", f"$ {delta_kpi_usd:,.0f}"],
-                ["Variación Porcentual Operativa", f"{pct_kpi_var:+.2f} %"]
-            ]
-            t_kpi = Table(kpi_data, colWidths=[250, 250])
-            t_kpi.setStyle(TableStyle([
-                ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#1d3557')),
-                ('TEXTCOLOR', (0,0), (-1,0), colors.white),
-                ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-                ('BOTTOMPADDING', (0,0), (-1,0), 5),
-                ('BACKGROUND', (0,1), (-1,-1), colors.HexColor('#ffffff')),
-                ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#dee2e6')),
-                ('ALIGN', (1,1), (-1,-1), 'RIGHT'),
-                ('FONTNAME', (1,1), (1,-1), 'Helvetica-Bold')
-            ]))
-            story.append(t_kpi)
-            
-            story.append(Spacer(1, 15))
-            story.append(Paragraph("4. Resumen Quinquenal Consolidado (2027 - 2031)", h1_style))
-            
-            tabla_vals = [["Año Financiero", "Presupuesto Simulado Consolidado (USD)"]]
-            if not df_final_proy.empty:
-                df_melt_pdf = df_final_proy[['Classif'] + [f'Final_{a}' for a in años_quinquenio]].melt(id_vars=['Classif'], var_name='Año', value_name='Monto')
-                df_melt_pdf['Año'] = df_melt_pdf['Año'].str.replace('Final_FY', '20')
-                df_tabla_pdf = df_melt_pdf.groupby(['Año'])['Monto'].sum().reset_index()
-                for _, fila in df_tabla_pdf.iterrows():
-                    tabla_vals.append([str(fila['Año']), f"$ {fila['Monto']:,.0f}"])
-            else:
-                tabla_vals.append(["-", "$ 0"])
+                fig_totales_globales = px.bar(
+                    df_total_por_anio,
+                    x="Año", y="Monto", color="Año", text="Monto",
+                    title="Evolución del Costo Total Global Consolidado (2027-2031)",
+                    color_discrete_sequence=px.colors.qualitative.Dark24
+                )
+                fig_totales_globales.update_traces(texttemplate='$%{text:,.0f}', textposition='outside')
+                fig_totales_globales.update_layout(
+                    xaxis_title="Año Operativo", yaxis_title="Monto Neto General ($)",
+                    yaxis_tickformat="$,.0f", margin=dict(t=50, b=50), height=450, showlegend=False
+                )
+                st.plotly_chart(fig_totales_globales, use_container_width=True, key="grafico_barras_totales_globales")
+
+                st.markdown(f"#### 📈 Tendencia Anual: Línea Base Ponderada vs. Escenario Simulado ({escenario})")
                 
-            t_quinquenal = Table(tabla_vals, colWidths=[200, 300])
-            t_quinquenal.setStyle(TableStyle([
-                ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#457b9d')),
-                ('TEXTCOLOR', (0,0), (-1,0), colors.white),
-                ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-                ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#dee2e6')),
-                ('ALIGN', (1,1), (-1,-1), 'RIGHT'),
-                ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.white, colors.HexColor('#f1faee')])
-            ]))
-            story.append(t_quinquenal)
+                # Dejamos solo los años proyectados sensibles a los sliders
+                anios_proy_grafico = ['2027', '2028', '2029', '2030', '2031']
+                
+                totales_base_anual = [df_estrat[f'Base_FY{a[-2:]}'].sum() for a in anios_proy_grafico]
+                totales_sim_anual = [df_estrat[f'Final_FY{a[-2:]}'].sum() for a in anios_proy_grafico]
 
-            story.append(Spacer(1, 15))
-            story.append(Paragraph("5. Elasticidades y Parámetros Operativos", h1_style))
+                df_lineas_anual = pd.DataFrame({
+                    "Año Operativo": anios_proy_grafico * 2,
+                    "Monto": totales_base_anual + totales_sim_anual,
+                    "Tipo de Proyección": ["Línea Base (Consenso)"] * 5 + ["Escenario Simulado (Estrés)"] * 5
+                })
+
+                fig_tendencia = px.line(
+                    df_lineas_anual, x="Año Operativo", y="Monto", color="Tipo de Proyección", markers=True,
+                    title="Evolución Macro: Impacto de las Variables de Riesgo en el Horizonte 2024-2031",
+                    color_discrete_map={
+                        "Línea Base (Consenso)": "#457b9d",
+                        "Escenario Simulado (Estrés)": "#e63946" if delta_kpi_usd >= 0 else "#2a9d8f"
+                    }
+                )
+                fig_tendencia.update_traces(fill='tonexty')
+                fig_tendencia.update_layout(
+                    xaxis_title="Año", yaxis_title="Presupuesto Anual Consolidado (USD)",
+                    yaxis_tickformat="$,.0f", hovermode="x unified",
+                    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+                )
+                st.plotly_chart(fig_tendencia, use_container_width=True, key="grafico_tendencia_anual")
+
+        with tab_est2:
+            st.markdown("**Inspector Semántico Activo:** Revisa qué filas específicas han sido modificadas por las elasticidades de tus sliders (filas cuyo factor multiplicador es distinto de 1.0).")
+            df_verif = df_estrat[cols_existentes + ['Factor_Estrés_Fila', f'Base_{sufijo_kpi_sim}', f'Final_{sufijo_kpi_sim}']].copy()
+            df_verif = df_verif[df_verif['Factor_Estrés_Fila'] != 1.0]
+            st.dataframe(df_verif.head(300), use_container_width=True)
+
+        with tab_est3:
+            st.subheader("💾 Motor de Reportes Excel con Gráficos Integrados")
+            st.markdown("Genera una sábana analítica estructurada junto con un cuadro dinámico resumen, las variables de sensibilidad aplicadas y un gráfico nativo.")
             
-            param_data = [
-                ["Variable de Sensibilidad", "Porcentaje de Variación"],
-                ["Precio Diésel / Combustible", f"{slider_fuel_pct:+.1f}%"],
-                ["Tarifa Energía Eléctrica", f"{slider_power_pct:+.1f}%"],
-                ["Tipo de Cambio / USD", f"{slider_dolar_pct:+.1f}%"],
-                ["Costo Mano de Obra", f"{slider_labor_pct:+.1f}%"]
-            ]
-            t_param = Table(param_data, colWidths=[250, 250])
-            t_param.setStyle(TableStyle([
-                ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#e63946')),
-                ('TEXTCOLOR', (0,0), (-1,0), colors.white),
-                ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-                ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#dee2e6')),
-                ('ALIGN', (1,1), (-1,-1), 'CENTER')
-            ]))
-            story.append(t_param)
+            from io import BytesIO
+            output_excel = BytesIO()
+            
+            with pd.ExcelWriter(output_excel, engine="xlsxwriter") as writer:
+                df_final_proy.to_excel(writer, sheet_name="Proyeccion_Estrategica", index=False)
+                
+                workbook  = writer.book
+                worksheet = writer.sheets["Proyeccion_Estrategica"]
+                
+                header_fmt = workbook.add_format({
+                    'bold': True, 'text_wrap': True, 'fg_color': '#1d3557', 
+                    'font_color': 'white', 'border': 1, 'align': 'center', 'valign': 'vcenter'
+                })
+                param_header_fmt = workbook.add_format({
+                    'bold': True, 'text_wrap': True, 'fg_color': '#e63946', 
+                    'font_color': 'white', 'border': 1, 'align': 'center', 'valign': 'vcenter'
+                })
+                money_fmt  = workbook.add_format({'num_format': '$#,##0', 'border': 1})
+                pct_fmt    = workbook.add_format({'num_format': '+0.0%;-0.0%;0.0%', 'border': 1, 'align': 'center'})
+                text_fmt   = workbook.add_format({'border': 1})
+                
+                for col_num, col_name in enumerate(df_final_proy.columns):
+                    max_len = max(df_final_proy[col_name].astype(str).map(len).max(), len(col_name)) + 3
+                    worksheet.set_column(col_num, col_num, min(max_len, 30))
+                    
+                start_col = len(df_final_proy.columns) + 2
+                worksheet.set_column(start_col, start_col+1, 28)
+                
+                worksheet.write(8, start_col, "Año", header_fmt)
+                worksheet.write(8, start_col+1, "Gasto Total (USD)", header_fmt)
+                
+                totals = [df_final_proy[f'Final_{a}'].sum() for a in años_quinquenio]
+                for i, (año, tot) in enumerate(zip(['2027', '2028', '2029', '2030', '2031'], totals)):
+                    worksheet.write(9+i, start_col, año, text_fmt)
+                    worksheet.write(9+i, start_col+1, tot, money_fmt)
 
-            doc.build(story)
-            buffer.seek(0)
-            return buffer
+                worksheet.write(16, start_col, "Variable de Sensibilidad", param_header_fmt)
+                worksheet.write(16, start_col+1, "Porcentaje de Variación", param_header_fmt)
+                
+                parametros_guardados = [
+                    ("Precio Diésel / Combustible", slider_fuel_pct / 100.0),
+                    ("Tarifa Energía Eléctrica", slider_power_pct / 100.0),
+                    ("Tipo de Cambio / USD", slider_dolar_pct / 100.0),
+                    ("Costo Mano de Obra", slider_labor_pct / 100.0)
+                ]
+                
+                for i, (var_name, var_val) in enumerate(parametros_guardados):
+                    worksheet.write(17+i, start_col, var_name, text_fmt)
+                    worksheet.write(17+i, start_col+1, var_val, pct_fmt)
+                    
+                worksheet.write(22, start_col, f"Escenario Maestro Activo: {escenario}", workbook.add_format({'bold': True, 'italic': True}))
 
-        pdf_final = generar_pdf_ejecutivo()
-        st.info("💡 Cada vez que ajustas un filtro organizacional, un selector de KPI o un slider, todo el panel y el reporte PDF se actualizan automáticamente.")
-        
-        st.download_button(
-            label="📥 Descargar Reporte Ejecutivo Oficial (PDF)",
-            data=pdf_final,
-            file_name=f"Reporte_Ejecutivo_Quinquenal_{escenario.replace(' ', '_')}.pdf",
-            mime="application/pdf",
-            use_container_width=True
-        )
+                chart = workbook.add_chart({'type': 'column'})
+                chart.add_series({
+                    'name': 'Proyección Quinquenal',
+                    'categories': ['Proyeccion_Estrategica', 9, start_col, 13, start_col],
+                    'values':     ['Proyeccion_Estrategica', 9, start_col+1, 13, start_col+1],
+                    'data_labels': {'value': True},
+                    'fill':   {'color': '#4F81BD'}
+                })
+                chart.set_title({'name': f'Evolución del Presupuesto ({escenario})'})
+                chart.set_x_axis({'name': 'Año Operativo'})
+                chart.set_y_axis({'name': 'Costo (USD)', 'num_format': '$#,##0'})
+                chart.set_size({'width': 550, 'height': 350})
+                
+                worksheet.insert_chart(25, start_col, chart)
+                
+            st.download_button(
+                label="Descargar Reporte Quinquenal (Incluye Gráficos y Variables en Excel)",
+                data=output_excel.getvalue(),
+                file_name="Planificacion_Estrategica_Visual.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True
+            )
+
+        with tab_est4:
+            st.subheader("📄 Generador de Reporte PDF Corporativo en Tiempo Real")
+            st.markdown("Genera un documento formal listo para comités ejecutivos que captura las sensibilidades aplicadas y detalla explícitamente los alcances reales evaluados.")
+            
+            from reportlab.lib.pagesizes import letter
+            from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
+            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+            from reportlab.lib import colors
+            from io import BytesIO
+            from datetime import datetime
+            import zoneinfo
+
+            def generar_pdf_ejecutivo():
+                buffer = BytesIO()
+                doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
+                story = []
+                
+                styles = getSampleStyleSheet()
+                titulo_style = ParagraphStyle(
+                    'PortadaTitulo', parent=styles['Normal'],
+                    fontName='Helvetica-Bold', fontSize=24, leading=30,
+                    textColor=colors.HexColor('#1d3557'), alignment=1, spaceAfter=15
+                )
+                sub_style = ParagraphStyle(
+                    'PortadaSub', parent=styles['Normal'],
+                    fontName='Helvetica', fontSize=14, leading=18,
+                    textColor=colors.HexColor('#457b9d'), alignment=1, spaceAfter=40
+                )
+                h1_style = ParagraphStyle(
+                    'H1Corp', parent=styles['Heading1'],
+                    fontName='Helvetica-Bold', fontSize=16, leading=20,
+                    textColor=colors.HexColor('#1d3557'), spaceBefore=15, spaceAfter=10
+                )
+                body_style = ParagraphStyle(
+                    'BodyCorp', parent=styles['Normal'],
+                    fontName='Helvetica', fontSize=10, leading=14,
+                    textColor=colors.HexColor('#2b2d42'), spaceAfter=8
+                )
+                bold_body = ParagraphStyle(
+                    'BoldCorp', parent=body_style, fontName='Helvetica-Bold'
+                )
+                
+                try:
+                    tz_chile = zoneinfo.ZoneInfo("America/Santiago")
+                    ahora_chile = datetime.now(tz_chile)
+                except Exception:
+                    ahora_chile = datetime.now()
+                fecha_viva = ahora_chile.strftime("%d/%m/%Y")
+                
+                if not df_final_proy.empty and 'Classif' in df_final_proy.columns:
+                    classif_reales = sorted(df_final_proy['Classif'].dropna().unique().tolist())
+                    classif_txt = ", ".join(classif_reales) if classif_reales else "[Sin clasificaciones representadas]"
+                else:
+                    classif_txt = "[Sin datos disponibles debido a los filtros]"
+
+                vps_txt = ", ".join(selected_vps) if selected_vps else "[Todas las VPs Consolidadas]"
+                gerencias_txt = ", ".join(selected_gerencias) if selected_gerencias else "[Todas las Gerencias Consolidadas]"
+
+                story.append(Spacer(1, 80))
+                story.append(Paragraph("INFORME DE PLANIFICACIÓN ESTRATÉGICA Y SENSIBILIDAD QUINQUENAL", titulo_style))
+                story.append(Paragraph("Análisis de Riesgo Operativo y Proyección de Costos (2027 - 2031)", sub_style))
+                story.append(Spacer(1, 100))
+                
+                info_data = [
+                    [Paragraph("<b>Preparado Para:</b>", body_style), Paragraph("Comité de Finanzas y Operaciones", body_style)],
+                    [Paragraph("<b>Fecha de Emisión (Chile):</b>", body_style), Paragraph(fecha_viva, body_style)],
+                    [Paragraph("<b>Escenario Aplicado:</b>", body_style), Paragraph(f"{escenario}", bold_body)]
+                ]
+                t_info = Table(info_data, colWidths=[140, 360])
+                t_info.setStyle(TableStyle([('VALIGN', (0,0), (-1,-1), 'TOP'), ('BOTTOMPADDING', (0,0), (-1,-1), 4)]))
+                story.append(t_info)
+                story.append(PageBreak())
+
+                story.append(Paragraph("1. Resumen Ejecutivo", h1_style))
+                story.append(Paragraph(
+                    f"Este reporte formal documenta las proyecciones financieras y simulaciones de estrés "
+                    f"bajo el escenario estratégico corporativo de <b>'{escenario}'</b>. Los cálculos incorporan "
+                    f"los multiplicadores automáticos definidos en base a indexadores operativos clave.", body_style
+                ))
+                
+                story.append(Spacer(1, 5))
+                story.append(Paragraph("2. Alcance y Categorías Evaluadas en este Informe", h1_style))
+                story.append(Paragraph("Los datos consolidados corresponden estrictamente a las líneas presupuestarias con representación e impacto real según los filtros seleccionados:", body_style))
+                
+                alcance_data = [
+                    [Paragraph("<b>Vicepresidencias (VPs):</b>", body_style), Paragraph(vps_txt, body_style)],
+                    [Paragraph("<b>Gerencias Afectadas:</b>", body_style), Paragraph(gerencias_txt, body_style)],
+                    [Paragraph("<b>Clasificaciones / Cuentas Reales:</b>", body_style), Paragraph(classif_txt, body_style)]
+                ]
+                t_alcance = Table(alcance_data, colWidths=[140, 360])
+                t_alcance.setStyle(TableStyle([
+                    ('VALIGN', (0,0), (-1,-1), 'TOP'),
+                    ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#f8f9fa')),
+                    ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#e9ecef')),
+                    ('TOPPADDING', (0,0), (-1,-1), 6),
+                    ('BOTTOMPADDING', (0,0), (-1,-1), 6)
+                ]))
+                story.append(t_alcance)
+                
+                story.append(Spacer(1, 15))
+                story.append(Paragraph(f"3. Métricas Clave de Impacto Seleccionadas ({kpi_base_year} vs {kpi_sim_year})", h1_style))
+                
+                kpi_data = [
+                    [f"Métrica Financiera", "Monto Valorizado (USD)"],
+                    [f"Proyección Financiera Base ({kpi_base_year})", f"$ {tot_kpi_base:,.0f}"],
+                    [f"Proyección con Sensibilidad ({kpi_sim_year})", f"$ {tot_kpi_simulado:,.0f}"],
+                    ["Impacto Neto Neto en Margen", f"$ {delta_kpi_usd:,.0f}"],
+                    ["Variación Porcentual Operativa", f"{pct_kpi_var:+.2f} %"]
+                ]
+                t_kpi = Table(kpi_data, colWidths=[250, 250])
+                t_kpi.setStyle(TableStyle([
+                    ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#1d3557')),
+                    ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+                    ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+                    ('BOTTOMPADDING', (0,0), (-1,0), 5),
+                    ('BACKGROUND', (0,1), (-1,-1), colors.HexColor('#ffffff')),
+                    ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#dee2e6')),
+                    ('ALIGN', (1,1), (-1,-1), 'RIGHT'),
+                    ('FONTNAME', (1,1), (1,-1), 'Helvetica-Bold')
+                ]))
+                story.append(t_kpi)
+                
+                story.append(Spacer(1, 15))
+                story.append(Paragraph("4. Resumen Quinquenal Consolidado (2027 - 2031)", h1_style))
+                
+                tabla_vals = [["Año Financiero", "Presupuesto Simulado Consolidado (USD)"]]
+                if not df_final_proy.empty:
+                    df_melt_pdf = df_final_proy[['Classif'] + [f'Final_{a}' for a in años_quinquenio]].melt(id_vars=['Classif'], var_name='Año', value_name='Monto')
+                    df_melt_pdf['Año'] = df_melt_pdf['Año'].str.replace('Final_FY', '20')
+                    df_tabla_pdf = df_melt_pdf.groupby(['Año'])['Monto'].sum().reset_index()
+                    for _, fila in df_tabla_pdf.iterrows():
+                        tabla_vals.append([str(fila['Año']), f"$ {fila['Monto']:,.0f}"])
+                else:
+                    tabla_vals.append(["-", "$ 0"])
+                    
+                t_quinquenal = Table(tabla_vals, colWidths=[200, 300])
+                t_quinquenal.setStyle(TableStyle([
+                    ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#457b9d')),
+                    ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+                    ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+                    ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#dee2e6')),
+                    ('ALIGN', (1,1), (-1,-1), 'RIGHT'),
+                    ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.white, colors.HexColor('#f1faee')])
+                ]))
+                story.append(t_quinquenal)
+
+                story.append(Spacer(1, 15))
+                story.append(Paragraph("5. Elasticidades y Parámetros Operativos", h1_style))
+                
+                param_data = [
+                    ["Variable de Sensibilidad", "Porcentaje de Variación"],
+                    ["Precio Diésel / Combustible", f"{slider_fuel_pct:+.1f}%"],
+                    ["Tarifa Energía Eléctrica", f"{slider_power_pct:+.1f}%"],
+                    ["Tipo de Cambio / USD", f"{slider_dolar_pct:+.1f}%"],
+                    ["Costo Mano de Obra", f"{slider_labor_pct:+.1f}%"]
+                ]
+                t_param = Table(param_data, colWidths=[250, 250])
+                t_param.setStyle(TableStyle([
+                    ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#e63946')),
+                    ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+                    ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+                    ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#dee2e6')),
+                    ('ALIGN', (1,1), (-1,-1), 'CENTER')
+                ]))
+                story.append(t_param)
+
+                doc.build(story)
+                buffer.seek(0)
+                return buffer
+
+            pdf_final = generar_pdf_ejecutivo()
+            st.info("💡 Cada vez que ajustas un filtro organizacional, un selector de KPI o un slider, todo el panel y el reporte PDF se actualizan automáticamente.")
+            
+            st.download_button(
+                label="📥 Descargar Reporte Ejecutivo Oficial (PDF)",
+                data=pdf_final,
+                file_name=f"Reporte_Ejecutivo_Quinquenal_{escenario.replace(' ', '_')}.pdf",
+                mime="application/pdf",
+                use_container_width=True
+            )
