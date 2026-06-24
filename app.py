@@ -11,7 +11,52 @@ import pandas as pd
 import streamlit as st
 import plotly.express as px
 
+# =========================================================================
+# CONFIGURACIÓN GENERAL DE ALTA VISIBILIDAD (VERSIÓN BLINDADA RE-CORREGIDA)
+# =========================================================================
 
+# A. ESTILO GENERAL PARA LOS GRÁFICOS (Asignación directa por atributo)
+pio.templates.default = "plotly_white"
+
+# Accedemos de forma explícita al layout de la plantilla activa para evitar el ValueError
+template_layout = pio.templates[pio.templates.default].layout
+
+# Configuración de los títulos y textos generales
+template_layout.title.font = dict(size=24, family="Arial, sans-serif", color="#000000")
+template_layout.font = dict(size=14, family="Arial", color="#000000")
+
+# Configuración explícita de los ejes X e Y
+template_layout.xaxis.title.font = dict(size=16, family="Arial", color="#000000")
+template_layout.xaxis.tickfont = dict(size=14, family="Arial", color="#000000")
+
+template_layout.yaxis.title.font = dict(size=16, family="Arial", color="#000000")
+template_layout.yaxis.tickfont = dict(size=14, family="Arial", color="#000000")
+
+# Configuración explícita de las Leyendas
+template_layout.legend.font = dict(size=14, family="Arial", color="#000000")
+template_layout.legend.title.font = dict(size=15, family="Arial", color="#000000")
+
+
+# B. ESTILO GENERAL PARA LA INTERFAZ DE STREAMLIT (Se mantiene igual de fuerte)
+st.markdown("""
+    <style>
+        /* Títulos e indicadores macro */
+        h1, h2, h3 { font-size: 32px !important; font-weight: 850 !important; color: #000000 !important; }
+        h4, h5, h6 { font-size: 24px !important; font-weight: 750 !important; color: #111111 !important; }
+        
+        /* Texto de sliders, etiquetas, leyendas de Streamlit */
+        p, span, label, .stSlider { font-size: 18px !important; font-weight: 700 !important; color: #000000 !important; }
+        
+        /* Títulos de las pestañas (Tabs) */
+        button[data-baseweb="tab"] p { font-size: 20px !important; font-weight: 800 !important; }
+        
+        /* Tablas / DataFrames numéricos */
+        .styled-table, div[data-testid="stDataFrame"] * { font-size: 16px !important; font-weight: 600 !important; }
+        
+        /* Forzar visualmente negritas en los textos de los ejes de los gráficos mediante el navegador */
+        .xtick text, .ytick text, .gtitle { font-weight: bold !important; }
+    </style>
+""", unsafe_allow_html=True)
 
 # Asegurar la ruta de importaciones locales
 sys.path.insert(0, str(Path(__file__).resolve().parent))
