@@ -819,11 +819,11 @@ Python
 # ============================================================================
 # ============================================================================
 
-    elif app_mode == "📈 Proyección Estratégica (2027-2031)":
-        st.title("📈 Tablero Interactivo de Proyección Estratégica y KPIs")
-        st.markdown("Modelo de proyección basado en Pronóstico de Consenso Ponderado (2024-2031) con sensibilidad a variables operativas clave.")
-
-        st.sidebar.subheader("🎬 Escenarios Preconfigurados")
+        elif app_mode == "📈 Proyección Estratégica (2027-2031)":
+            st.title("📈 Tablero Interactivo de Proyección Estratégica y KPIs")
+            st.markdown("Modelo de proyección basado en Pronóstico de Consenso Ponderado (2024-2031) con sensibilidad a variables operativas clave.")
+    
+            st.sidebar.subheader("🎬 Escenarios Preconfigurados")
         
         # Sincronizamos el selectbox con la sesión para poder resetearlo también
         if 'escenario_idx' not in st.session_state:
