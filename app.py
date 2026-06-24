@@ -951,15 +951,9 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
                 df_melt['Año'] = df_melt['Año'].str.replace('Final_FY', '20')
                 df_g_anual = df_melt.groupby(['Año', 'Classif'])['Monto'].sum().reset_index()
 
-                fig_barras = px.bar(
-                    df_g_anual, 
-                    x="Año", y="Monto", color="Classif", 
-                    title="Presupuesto Multianual Reconstruido y Simulado (USD Detallado)", 
-                    color_discrete_sequence=px.colors.qualitative.Safe
-                )
-                fig_barras.update_layout(yaxis_tickformat="$,.0f")
-                st.plotly_chart(fig_barras, use_container_width=True)
-
+              # =========================================================================
+                # 1. PRIMERO: PRESUPUESTO TOTAL CONSOLIDADO QUINQUENAL
+                # =========================================================================
                 st.markdown("#### 📊 Presupuesto Total Consolidado Quinquenal")
                 df_total_por_anio = df_g_anual.groupby('Año')['Monto'].sum().reset_index()
 
@@ -975,6 +969,21 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
                     yaxis_tickformat="$,.0f", margin=dict(t=50, b=50), height=450, showlegend=False
                 )
                 st.plotly_chart(fig_totales_globales, use_container_width=True, key="grafico_barras_totales_globales")
+
+                # Línea de separación opcional para mantener el orden limpio entre ambos
+                st.write("---")
+
+                # =========================================================================
+                # 2. SEGUNDO: PRESUPUESTO MULTIANUAL RECONSTRUIDO Y SIMULADO
+                # =========================================================================
+                fig_barras = px.bar(
+                    df_g_anual, 
+                    x="Año", y="Monto", color="Classif", 
+                    title="Presupuesto Multianual Reconstruido y Simulado (USD Detallado)", 
+                    color_discrete_sequence=px.colors.qualitative.Safe
+                )
+                fig_barras.update_layout(yaxis_tickformat="$,.0f")
+                st.plotly_chart(fig_barras, use_container_width=True)
 
                 st.markdown(f"#### 📈 Tendencia Anual: Línea Base Ponderada vs. Escenario Simulado ({escenario})")
                 
