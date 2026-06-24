@@ -1144,30 +1144,31 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
                 use_container_width=True
             )
 
-          with tab_est4:
-                st.subheader("📄 Generador de Reporte PDF Corporativo en Tiempo Real")
-                st.markdown("Genera un documento formal listo para comités ejecutivos que captura las sensibilidades aplicadas y detalla explícitamente los alcances reales evaluados.")      
+        with tab_est4:
+            st.subheader("📄 Generador de Reporte PDF Corporativo en Tiempo Real")
+            st.markdown("Genera un documento formal listo para comités ejecutivos que captura las sensibilidades aplicadas y detalla explícitamente los alcances reales evaluados.")      
                 
-                from reportlab.lib.pagesizes import letter
-                from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
-                from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-                from reportlab.lib import colors
-                from io import BytesIO
-                from datetime import datetime
-                import zoneinfo
+            from reportlab.lib.pagesizes import letter
+            from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
+            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+            from reportlab.lib import colors
+            from io import BytesIO
+            from datetime import datetime
+            import zoneinfo
     
-                def generar_pdf_ejecutivo():
-                    buffer = BytesIO()
-                    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
-                    story = []
-                    styles = getSampleStyleSheet()
+            def generar_pdf_ejecutivo():
+                 buffer = BytesIO()
+                 doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
+                 story = []
+                
+                 styles = getSampleStyleSheet()
                     
-                    titulo_style = ParagraphStyle('PortadaTitulo', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=22, leading=26, textColor=colors.HexColor('#1d3557'), alignment=1, spaceAfter=15)
-                    sub_style = ParagraphStyle('PortadaSub', parent=styles['Normal'], fontName='Helvetica', fontSize=13, leading=16, textColor=colors.HexColor('#457b9d'), alignment=1, spaceAfter=30)
-                    h1_style = ParagraphStyle('H1Corp', parent=styles['Heading1'], fontName='Helvetica-Bold', fontSize=14, leading=18, textColor=colors.HexColor('#1d3557'), spaceBefore=14, spaceAfter=8)
-                    body_style = ParagraphStyle('BodyCorp', parent=styles['Normal'], fontName='Helvetica', fontSize=9.5, leading=13.5, textColor=colors.HexColor('#2b2d42'), spaceAfter=8)
-                    bold_body = ParagraphStyle('BoldCorp', parent=body_style, fontName='Helvetica-Bold')
-                    analisis_style = ParagraphStyle('AnalisisCorp', parent=styles['Normal'], fontName='Helvetica-Oblique', fontSize=9, leading=13, textColor=colors.HexColor('#1d3557'), spaceBefore=4, spaceAfter=10)
+                 titulo_style = ParagraphStyle('PortadaTitulo', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=22, leading=26, textColor=colors.HexColor('#1d3557'), alignment=1, spaceAfter=15)
+                 sub_style = ParagraphStyle('PortadaSub', parent=styles['Normal'], fontName='Helvetica', fontSize=13, leading=16, textColor=colors.HexColor('#457b9d'), alignment=1, spaceAfter=30)
+                 h1_style = ParagraphStyle('H1Corp', parent=styles['Heading1'], fontName='Helvetica-Bold', fontSize=14, leading=18, textColor=colors.HexColor('#1d3557'), spaceBefore=14, spaceAfter=8)
+                 body_style = ParagraphStyle('BodyCorp', parent=styles['Normal'], fontName='Helvetica', fontSize=9.5, leading=13.5, textColor=colors.HexColor('#2b2d42'), spaceAfter=8)
+                 bold_body = ParagraphStyle('BoldCorp', parent=body_style, fontName='Helvetica-Bold')
+                 analisis_style = ParagraphStyle('AnalisisCorp', parent=styles['Normal'], fontName='Helvetica-Oblique', fontSize=9, leading=13, textColor=colors.HexColor('#1d3557'), spaceBefore=4, spaceAfter=10)
                     
                     try:
                         tz_chile = zoneinfo.ZoneInfo("America/Santiago")
