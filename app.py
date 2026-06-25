@@ -822,39 +822,84 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
         st.title("📈 Tablero Interactivo de Proyección Estratégica y KPIs")
         st.markdown("Modelo de proyección basado en Pronóstico de Consenso Ponderado (2024-2031) con sensibilidad a variables operativas clave.")
 
+    # 1. INICIALIZAR VARIABLES AL PRINCIPIO (Ahora incluye fuel_pct)
         st.sidebar.subheader("🎬 Escenarios Preconfigurados")
-        if 'reset_counter' not in st.session_state:
-            st.session_state['reset_counter'] = 0
-        escenario = st.sidebar.selectbox("Seleccione un escenario estratégico:", [
+
+    # 1. Inicializar variables en el session_state si no existen al arrancar
+        if 'fuel_pct' not in st.session_state: st.session_state.fuel_pct = 0.0
+        if 'power_pct' not in st.session_state: st.session_state.power_pct = 0.0
+        if 'dolar_pct' not in st.session_state: st.session_state.dolar_pct = 0.0
+        if 'labor_pct' not in st.session_state: st.session_state.labor_pct = 0.0
+        if 'escenario' not in st.session_state: st.session_state.escenario = "Manual / Personalizado"
+
+        # 2. Sincronizar dinámicamente el dropdown si mueves los sliders a mano
+        f = st.session_state.fuel_pct
+        p = st.session_state.power_pct
+        d = st.session_state.dolar_pct
+        l = st.session_state.labor_pct
+
+        if f == 25.0 and p == 10.0 and d == 20.0 and l == 5.0:
+            st.session_state.escenario = "Crisis Global (+Combustible y Dólar)"
+        elif f == 5.0 and p == 2.0 and d == 0.0 and l == 18.0:
+            st.session_state.escenario = "Negociación Sindical (+Mano de Obra)"
+        elif f == -12.0 and p == -5.0 and d == -5.0 and l == -6.0:
+            st.session_state.escenario = "Eficiencia Operativa (-Costos Generales)"
+        elif f == 0.0 and p == 0.0 and d == 0.0 and l == 0.0:
+            pass 
+        else:
+            st.session_state.escenario = "Manual / Personalizado"
+
+        opciones_escenarios = [
             "Manual / Personalizado",
             "Crisis Global (+Combustible y Dólar)",
             "Negociación Sindical (+Mano de Obra)",
             "Eficiencia Operativa (-Costos Generales)"
-        ])
+        ]
 
-        val_fuel, val_power, val_dolar, val_labor = 0.0, 0.0, 0.0, 0.0
-        if escenario == "Crisis Global (+Combustible y Dólar)":
-            val_fuel, val_power, val_dolar, val_labor = 25.0, 10.0, 20.0, 5.0
-        elif escenario == "Negociación Sindical (+Mano de Obra)":
-            val_fuel, val_power, val_dolar, val_labor = 5.0, 2.0, 0.0, 18.0
-        elif escenario == "Eficiencia Operativa (-Costos Generales)":
-            val_fuel, val_power, val_dolar, val_labor = -12.0, -5.0, -5.0, -6.0
+        # Renderizar el selectbox apuntando al índice de la memoria
+        escenario_seleccionado = st.sidebar.selectbox(
+            "Seleccione un escenario estratégico:",
+            opciones_escenarios,
+            index=opciones_escenarios.index(st.session_state.escenario)
+        )
+
+        # 3. Si cambias el escenario en el selectbox, actualizamos los sliders
+        if escenario_seleccionado != st.session_state.escenario:
+            st.session_state.escenario = escenario_seleccionado
+            if escenario_seleccionado == "Crisis Global (+Combustible y Dólar)":
+                st.session_state.fuel_pct, st.session_state.power_pct, st.session_state.dolar_pct, st.session_state.labor_pct = 25.0, 10.0, 20.0, 5.0
+            elif escenario_seleccionado == "Negociación Sindical (+Mano de Obra)":
+                st.session_state.fuel_pct, st.session_state.power_pct, st.session_state.dolar_pct, st.session_state.labor_pct = 5.0, 2.0, 0.0, 18.0
+            elif escenario_seleccionado == "Eficiencia Operativa (-Costos Generales)":
+                st.session_state.fuel_pct, st.session_state.power_pct, st.session_state.dolar_pct, st.session_state.labor_pct = -12.0, -5.0, -5.0, -6.0
+            elif escenario_seleccionado == "Manual / Personalizado":
+                st.session_state.fuel_pct, st.session_state.power_pct, st.session_state.dolar_pct, st.session_state.labor_pct = 0.0, 0.0, 0.0, 0.0
+            st.rerun()
 
         st.sidebar.markdown("---")
         st.sidebar.subheader("🎛️ Parámetros de Sensibilidad (%)")
-    
-        # 3. SLIDERS CON LLAVE DINÁMICA SCONECTADA AL CONTADOR
-        slider_fuel_pct = st.sidebar.slider("Variación Precio Diésel / Combustible", -100.0, 100.0, val_fuel, step=0.1, key=f"fuel_{st.session_state['reset_counter']}")
-        slider_power_pct = st.sidebar.slider("Variación Tarifa Energía Eléctrica", -100.0, 100.0, val_power, step=0.1, key=f"power_{st.session_state['reset_counter']}")
-        slider_dolar_pct = st.sidebar.slider("Variación Tipo de Cambio / USD", -100.0, 100.0, val_dolar, step=0.1, key=f"dolar_{st.session_state['reset_counter']}")
-        slider_labor_pct = st.sidebar.slider("Variación Costo Mano de Obra", -100.0, 100.0, val_labor, step=0.1, key=f"labor_{st.session_state['reset_counter']}")
 
-        # 4. EL BOTÓN DE RESETEO INMUTABLE
-        if st.sidebar.button("🔄 Restablecer Parámetros (0.0%)", use_container_width=True, type="primary"):
-            # Al cambiar este número, cambiamos el nombre de las llaves de TODOS los controles de arriba.
-            # Al cambiar de nombre, Streamlit borra lo viejo y renderiza todo en su estado inicial (0.0).
-            st.session_state['reset_counter'] += 1
-            st.rerun()
+        # 4. Sliders modificados: Rango -100.0 a 100.0, pasos de 0.5 y formato decimal (.1f)
+        slider_fuel_pct = st.sidebar.slider("Variación Precio Diésel / Combustible", -100.0, 100.0, step=0.5, format="%.1f%%", key="fuel_pct")
+        slider_power_pct = st.sidebar.slider("Energía Eléctrica", -100.0, 100.0, step=0.5, format="%.1f%%", key="power_pct")
+        slider_dolar_pct = st.sidebar.slider("Tipo de Cambio (USD)", -100.0, 100.0, step=0.5, format="%.1f%%", key="dolar_pct")
+        slider_labor_pct = st.sidebar.slider("Mano de Obra (Labor)", -100.0, 100.0, step=0.5, format="%.1f%%", key="labor_pct")
+
+        # 5. Función de Reseteo (Callback)
+        def restablecer_valores_callback():
+            st.session_state.fuel_pct = 0.0
+            st.session_state.power_pct = 0.0
+            st.session_state.dolar_pct = 0.0
+            st.session_state.labor_pct = 0.0
+            st.session_state.escenario = "Manual / Personalizado"
+
+        # Botón de restablecer conectado al Callback
+        st.sidebar.button(
+            "🔄 Restablecer Parámetros (0.0%)",
+            use_container_width=True,
+            type="primary",
+            on_click=restablecer_valores_callback
+        )
 
         @st.cache_data
         def cargar_hojas_estratejicas(path):
@@ -1001,7 +1046,7 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
         col1.metric(f"Proyección Base ({kpi_base_year})", f"${tot_kpi_base:,.0f}")
         col2.metric(f"Proyección Simulada ({kpi_sim_year})", f"${tot_kpi_simulado:,.0f}")
         col3.metric("Impacto Neto Operativo", f"${delta_kpi_usd:,.0f}", f"{pct_kpi_var:+.2f}%", delta_color="inverse")
-        col4.metric("Escenario Activo", escenario)
+        col4.metric("Escenario Activo", st.session_state.escenario)
 
         st.markdown("---")
         
@@ -1054,7 +1099,7 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
                 fig_barras.update_layout(yaxis_tickformat="$,.0f")
                 st.plotly_chart(fig_barras, use_container_width=True)
 
-                st.markdown(f"#### 📈 Tendencia Anual: Línea Base Ponderada vs. Escenario Simulado ({escenario})")
+                st.markdown(f"#### 📈 Tendencia Anual: Línea Base Ponderada vs. Escenario Simulado ({st.session_state.escenario})")
                 
                 # Dejamos solo los años proyectados sensibles a los sliders
                 anios_proy_grafico = ['2027', '2028', '2029', '2030', '2031']
@@ -1119,7 +1164,7 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
                 # 6. Construcción del Gráfico de Líneas Estacionales
                 fig_lineas = px.line(
                     df_lineas_trend, x="Mes", y="Monto", color="Año / Escenario", markers=True,
-                    title=f"Evolución de Costos Mensuales — Impacto del Escenario ({escenario})",
+                    title=f"Evolución de Costos Mensuales — Impacto del Escenario ({st.session_state.escenario})",
                     color_discrete_map={
                         f"Año Base ({anio_base_sel})": "#457b9d",
                         f"Año Proyectado Simulado ({anio_proy_sel})": "#e63946" if delta_kpi_usd >= 0 else "#2a9d8f"
@@ -1289,7 +1334,7 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
                     worksheet.write(17+i, start_col, var_name, text_fmt)
                     worksheet.write(17+i, start_col+1, var_val, pct_fmt)
                     
-                worksheet.write(22, start_col, f"Escenario Maestro Activo: {escenario}", workbook.add_format({'bold': True, 'italic': True}))
+                worksheet.write(22, start_col, f"Escenario Maestro Activo: {st.session_state.escenario}", workbook.add_format({'bold': True, 'italic': True}))
 
                 chart = workbook.add_chart({'type': 'column'})
                 chart.add_series({
@@ -1299,7 +1344,7 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
                     'data_labels': {'value': True},
                     'fill':   {'color': '#4F81BD'}
                 })
-                chart.set_title({'name': f'Evolución del Presupuesto ({escenario})'})
+                chart.set_title({'name': f'Evolución del Presupuesto ({st.session_state.escenario})'})
                 chart.set_x_axis({'name': 'Año Operativo'})
                 chart.set_y_axis({'name': 'Costo (USD)', 'num_format': '$#,##0'})
                 chart.set_size({'width': 550, 'height': 350})
@@ -1363,7 +1408,7 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
                 info_data = [
                     [Paragraph("<b>Preparado Para:</b>", body_style), Paragraph("Comité de Finanzas y Operaciones", body_style)],
                     [Paragraph("<b>Fecha de Emisión (Chile):</b>", body_style), Paragraph(fecha_viva, body_style)],
-                    [Paragraph("<b>Escenario Aplicado:</b>", body_style), Paragraph(f"{escenario}", bold_body)]
+                    [Paragraph("<b>Escenario Aplicado:</b>", body_style), Paragraph(f"{st.session_state.escenario}", bold_body)]
                 ]
                 t_info = Table(info_data, colWidths=[140, 360])
                 t_info.setStyle(TableStyle([('VALIGN', (0,0), (-1,-1), 'TOP'), ('BOTTOMPADDING', (0,0), (-1,-1), 4)]))
@@ -1374,7 +1419,7 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
                 story.append(Paragraph("1. Resumen Ejecutivo", h1_style))
                 story.append(Paragraph(
                     f"Este reporte formal documenta las proyecciones financieras y simulaciones de estrés "
-                    f"bajo el escenario estratégico corporativo de <b>'{escenario}'</b>. Los cálculos incorporan "
+                    f"bajo el escenario estratégico corporativo de <b>'{st.session_state.escenario}'</b>. Los cálculos incorporan "
                     f"los multiplicadores automáticos definidos en base a indexadores operativos clave como diésel, energía y tipo de cambio.", body_style
                 ))
                 
@@ -1505,7 +1550,7 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
             st.download_button(
                 label="📥 Descargar Reporte Ejecutivo Oficial (PDF)",
                 data=pdf_final,
-                file_name=f"Reporte_Ejecutivo_Quinquenal_{escenario.replace(' ', '_')}.pdf",
+                file_name=f"Reporte_Ejecutivo_Quinquenal_{st.session_state.escenario.replace(' ', '_')}.pdf",
                 mime="application/pdf",
                 use_container_width=True
             )
