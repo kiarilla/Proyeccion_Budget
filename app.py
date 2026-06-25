@@ -823,67 +823,38 @@ elif app_mode == "📈 Proyección Estratégica (2027-2031)":
         st.markdown("Modelo de proyección basado en Pronóstico de Consenso Ponderado (2024-2031) con sensibilidad a variables operativas clave.")
 
         st.sidebar.subheader("🎬 Escenarios Preconfigurados")
+        if 'reset_counter' not in st.session_state:
+            st.session_state['reset_counter'] = 0
+        escenario = st.sidebar.selectbox("Seleccione un escenario estratégico:", [
+            "Manual / Personalizado",
+            "Crisis Global (+Combustible y Dólar)",
+            "Negociación Sindical (+Mano de Obra)",
+            "Eficiencia Operativa (-Costos Generales)"
+        ])
 
-        # 1. INICIALIZACIÓN DE VARIABLES EN LA MEMORIA DE STREAMLIT
-        if 'f_val' not in st.session_state: st.session_state['f_val'] = 0.0
-        if 'p_val' not in st.session_state: st.session_state['p_val'] = 0.0
-        if 'd_val' not in st.session_state: st.session_state['d_val'] = 0.0
-        if 'l_val' not in st.session_state: st.session_state['l_val'] = 0.0
-
-        # Función "mágica" que se ejecuta SOLO cuando el usuario cambia el escenario manualmente
-        def actualizar_escenario():
-            sel = st.session_state['escenario_selector']
-            if sel == "Crisis Global (+Combustible y Dólar)":
-                st.session_state['f_val'], st.session_state['p_val'], st.session_state['d_val'], st.session_state['l_val'] = 25.0, 10.0, 20.0, 5.0
-            elif sel == "Negociación Sindical (+Mano de Obra)":
-                st.session_state['f_val'], st.session_state['p_val'], st.session_state['d_val'], st.session_state['l_val'] = 5.0, 2.0, 0.0, 18.0
-            elif sel == "Eficiencia Operativa (-Costos Generales)":
-                st.session_state['f_val'], st.session_state['p_val'], st.session_state['d_val'], st.session_state['l_val'] = -12.0, -5.0, -5.0, -6.0
-            elif sel == "Manual / Personalizado":
-                st.session_state['f_val'], st.session_state['p_val'], st.session_state['d_val'], st.session_state['l_val'] = 0.0, 0.0, 0.0, 0.0
-
-        # Selectbox estable conectado a la función de arriba
-        escenario = st.sidebar.selectbox(
-            "Seleccione un escenario estratégico:", 
-            [
-                "Manual / Personalizado",
-                "Crisis Global (+Combustible y Dólar)",
-                "Negociación Sindical (+Mano de Obra)",
-                "Eficiencia Operativa (-Costos Generales)"
-            ],
-            key='escenario_selector',
-            on_change=actualizar_escenario
-        )
+        val_fuel, val_power, val_dolar, val_labor = 0.0, 0.0, 0.0, 0.0
+        if escenario == "Crisis Global (+Combustible y Dólar)":
+            val_fuel, val_power, val_dolar, val_labor = 25.0, 10.0, 20.0, 5.0
+        elif escenario == "Negociación Sindical (+Mano de Obra)":
+            val_fuel, val_power, val_dolar, val_labor = 5.0, 2.0, 0.0, 18.0
+        elif escenario == "Eficiencia Operativa (-Costos Generales)":
+            val_fuel, val_power, val_dolar, val_labor = -12.0, -5.0, -5.0, -6.0
 
         st.sidebar.markdown("---")
         st.sidebar.subheader("🎛️ Parámetros de Sensibilidad (%)")
+    
+        # 3. SLIDERS CON LLAVE DINÁMICA SCONECTADA AL CONTADOR
+        slider_fuel_pct = st.sidebar.slider("Variación Precio Diésel / Combustible", -100.0, 100.0, val_fuel, step=0.1, key=f"fuel_{st.session_state['reset_counter']}")
+        slider_power_pct = st.sidebar.slider("Variación Tarifa Energía Eléctrica", -100.0, 100.0, val_power, step=0.1, key=f"power_{st.session_state['reset_counter']}")
+        slider_dolar_pct = st.sidebar.slider("Variación Tipo de Cambio / USD", -100.0, 100.0, val_dolar, step=0.1, key=f"dolar_{st.session_state['reset_counter']}")
+        slider_labor_pct = st.sidebar.slider("Variación Costo Mano de Obra", -100.0, 100.0, val_labor, step=0.1, key=f"labor_{st.session_state['reset_counter']}")
 
-        # 2. SLIDERS ATADOS DIRECTAMENTE A LA MEMORIA (Sin llaves dinámicas raras)
-        slider_fuel_pct = st.sidebar.slider("Variación Precio Diésel / Combustible", -100.0, 100.0, key="f_val", step=0.1)
-        slider_power_pct = st.sidebar.slider("Variación Tarifa Energía Eléctrica", -100.0, 100.0, key="p_val", step=0.1)
-        slider_dolar_pct = st.sidebar.slider("Variación Tipo de Cambio / USD", -100.0, 100.0, key="d_val", step=0.1)
-        slider_labor_pct = st.sidebar.slider("Variación Costo Mano de Obra", -100.0, 100.0, key="l_val", step=0.1)
-
-        # Si el usuario mueve un slider, cambiamos el texto del selectbox de arriba a "Manual / Personalizado" para que sea consistente
-        if escenario != "Manual / Personalizado":
-            # Verificamos si los valores reales difieren de lo que el escenario configuró originalmente
-            es_crisis = (st.session_state['f_val']==25.0 and st.session_state['p_val']==10.0 and st.session_state['d_val']==20.0 and st.session_state['l_val']==5.0)
-            es_sindical = (st.session_state['f_val']==5.0 and st.session_state['p_val']==2.0 and st.session_state['d_val']==0.0 and st.session_state['l_val']==18.0)
-            es_eficiencia = (st.session_state['f_val']==-12.0 and st.session_state['p_val']==-5.0 and st.session_state['d_val']==-5.0 and st.session_state['l_val']==-6.0)
-            
-            if not (es_crisis or es_sindical or es_eficiencia):
-                st.session_state['escenario_selector'] = "Manual / Personalizado"
-                st.rerun()
-
-        # 3. EL BOTÓN DE RESETEO MAESTRO (Ahora sí funciona perfecto)
+        # 4. EL BOTÓN DE RESETEO INMUTABLE
         if st.sidebar.button("🔄 Restablecer Parámetros (0.0%)", use_container_width=True, type="primary"):
-            st.session_state['f_val'] = 0.0
-            st.session_state['p_val'] = 0.0
-            st.session_state['d_val'] = 0.0
-            st.session_state['l_val'] = 0.0
-            st.session_state['escenario_selector'] = "Manual / Personalizado"
+            # Al cambiar este número, cambiamos el nombre de las llaves de TODOS los controles de arriba.
+            # Al cambiar de nombre, Streamlit borra lo viejo y renderiza todo en su estado inicial (0.0).
+            st.session_state['reset_counter'] += 1
             st.rerun()
-
 
         @st.cache_data
         def cargar_hojas_estratejicas(path):
